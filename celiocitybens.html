@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>CRM Consórcios | Gestão Profissional</title>
+    <!-- Tailwind CSS + Font Awesome + SheetJS + Notyf -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <style>
+        /* Estilos personalizados */
+        .client-card {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .client-card:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        /* Cores de fundo dos cards baseadas no status de prioridade */
+        .card-verde { background-color: #f0fdf4; border-left-color: #22c55e; }
+        .card-amarelo { background-color: #fefce8; border-left-color: #eab308; }
+        .card-vermelho { background-color: #fef2f2; border-left-color: #ef4444; }
+        .card-cinza { background-color: #f3f4f6; border-left-color: #9ca3af; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-verde { background-color: #dcfce7; color: #15803d; }
+        .badge-amarelo { background-color: #fef9c3; color: #854d0e; }
+        .badge-vermelho { background-color: #fee2e2; color: #b91c1c; }
+        .badge-cinza { background-color: #e5e7eb; color: #374151; }
+        
+        .tab-btn-active {
+            border-bottom-width: 2px;
+            border-color: #2563eb;
+            color: #1e40af;
+        }
+        .reminder-tab-active {
+            border-bottom-width: 2px;
+            border-color: #d97706;
+            color: #b45309;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased">
+
+<div class="max-w-[1600px] mx-auto p-4 md:p-6">
+    <!-- Cabeçalho -->
+    <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-700 text-white p-2 rounded-xl shadow">
+                <i class="fas fa-handshake text-2xl"></i>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 tracking-tight">CRM <span class="text-blue-700">Consórcios</span></h1>
+            <span class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">Gestão de Relacionamento</span>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+            <button id="importBtn" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg shadow-sm flex items-center gap-2 transition"><i class="fas fa-upload"></i> Importar Planilha</button>
+            <button id="resetBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg shadow-sm flex items-center gap-2"><i class="fas fa-database"></i> Restaurar Demo</button>
+            <button id="newClientBtn" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm flex items-center gap-2"><i class="fas fa-user-plus"></i> Novo Cliente</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Sidebar: Lista de clientes -->
+        <div class="lg:col-span-1 space-y-5">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-4 border-b bg-gray-50">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-search mr-1"></i> Clientes</label>
+                    <input type="text" id="searchClient" placeholder="Filtrar cliente..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div id="clientListContainer" class="max-h-[450px] overflow-y-auto divide-y divide-gray-100">
+                    <div class="p-4 text-center text-gray-400">Carregando...</div>
+                </div>
+            </div>
+
+            <!-- Lembretes com abas -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-3 bg-amber-50 border-b border-amber-200">
+                    <div class="flex gap-4">
+                        <button data-reminder-tab="pendentes" class="reminder-tab-btn py-1 text-sm font-medium border-b-2 border-amber-600 text-amber-800">⚠️ Pendentes</button>
+                        <button data-reminder-tab="agendados" class="reminder-tab-btn py-1 text-sm font-medium text-gray-500 hover:text-gray-700">📅 Agendados</button>
+                    </div>
+                </div>
+                <div id="remindersListPendentes" class="p-3 space-y-2 max-h-[280px] overflow-y-auto text-sm"></div>
+                <div id="remindersListAgendados" class="p-3 space-y-2 max-h-[280px] overflow-y-auto text-sm hidden"></div>
+                <div class="p-3 bg-gray-50 border-t">
+                    <button id="addReminderBtn" class="w-full text-blue-700 text-sm font-medium flex items-center justify-center gap-1 hover:bg-blue-50 py-1 rounded"><i class="fas fa-plus-circle"></i> Novo lembrete manual</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área principal -->
+        <div class="lg:col-span-3 space-y-5">
+            <!-- Painel do cliente selecionado -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-800 to-blue-700 px-5 py-4 text-white flex justify-between items-center flex-wrap gap-2">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="selectedClientName" class="text-xl font-bold">Nenhum cliente selecionado</h2>
+                            <button id="editClientBtn" class="text-white/80 hover:text-white text-sm"><i class="fas fa-edit"></i> Editar</button>
+                        </div>
+                        <p id="selectedClientContact" class="text-blue-100 text-sm flex gap-3 mt-1"><span><i class="fas fa-phone-alt mr-1"></i> -</span> <span><i class="fas fa-envelope mr-1"></i> -</span></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="quickReminderBtn" class="bg-white/20 hover:bg-white/30 text-white text-sm px-3 py-1 rounded-md flex items-center gap-1"><i class="fas fa-calendar-plus"></i> Lembrar</button>
+                    </div>
+                </div>
+                <!-- Tabs de conteúdo -->
+                <div class="border-b border-gray-200 px-5 pt-3">
+                    <div class="flex gap-6">
+                        <button data-tab="history" class="tab-btn py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-700">📋 Histórico de Contatos</button>
+                        <button data-tab="quotas" class="tab-btn py-2 text-sm font-medium text-gray-500 hover:text-gray-700">💰 Cotas & Situação</button>
+                    </div>
+                </div>
+                <div class="p-5">
+                    <div id="historyTab" class="tab-content">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-100 text-gray-700">
+                                    <tr><th class="px-3 py-2 text-left">Data</th><th class="px-3 py-2 text-left">Motivo</th><th class="px-3 py-2 text-left">Status Retorno</th><th class="px-3 py-2 text-left">Observações</th><th class="px-3 py-2 text-left">Ações</th></tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr><td colspan="5" class="text-center py-6 text-gray-400">Selecione um cliente</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="quotasTab" class="tab-content hidden">
+                        <div id="quotasInfo" class="space-y-3 text-gray-600">Selecione um cliente para visualizar as cotas.</div>
+                        <button id="addQuotaBtn" class="mt-4 text-blue-600 text-sm flex items-center gap-1 hover:underline"><i class="fas fa-plus"></i> Adicionar cota</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nova interação rápida -->
+            <div class="bg-white rounded-xl shadow-md p-5">
+                <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-pen-alt text-blue-600"></i> Nova Interação / Agendar Retorno</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="text" id="newMotivo" placeholder="Motivo do contato" class="border rounded-lg px-3 py-2 text-sm">
+                    <textarea id="newObs" rows="1" placeholder="Observações" class="border rounded-lg px-3 py-2 text-sm"></textarea>
+                    <input type="date" id="newRetornoDate" class="border rounded-lg px-3 py-2 text-sm">
+                    <button id="saveInteractionBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-medium flex items-center justify-center gap-1"><i class="fas fa-save"></i> Salvar + Agendar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Lembrete -->
+<div id="reminderModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl">
+        <h3 class="text-xl font-bold mb-4 flex justify-between"><span>Novo Lembrete</span><i class="fas fa-times cursor-pointer text-gray-400 hover:text-gray-700" id="closeModal"></i></h3>
+        <div class="space-y-3">
+            <select id="modalClientSelect" class="w-full border rounded-lg p-2"></select>
+            <input type="date" id="modalReminderDate" class="w-full border rounded-lg p-2">
+            <textarea id="modalReminderDesc" rows="2" placeholder="Descrição" class="w-full border rounded-lg p-2"></textarea>
+            <button id="confirmReminderBtn" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg font-medium">Criar Lembrete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição de Cliente -->
+<div id="editClientModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl">
+        <h3 class="text-xl font-bold mb-4 flex justify-between"><span>Editar Cliente</span><i class="fas fa-times cursor-pointer text-gray-400 hover:text-gray-700" id="closeEditModal"></i></h3>
+        <div class="space-y-3">
+            <input type="text" id="editClientName" placeholder="Nome" class="w-full border rounded-lg p-2">
+            <input type="text" id="editClientPhone" placeholder="Telefone" class="w-full border rounded-lg p-2">
+            <input type="email" id="editClientEmail" placeholder="E-mail" class="w-full border rounded-lg p-2">
+            <button id="confirmEditClientBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição de Interação -->
+<div id="editInteractionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl">
+        <h3 class="text-xl font-bold mb-4">Editar Interação</h3>
+        <div class="space-y-3">
+            <input type="date" id="editInteractionDate" class="w-full border rounded-lg p-2">
+            <input type="text" id="editInteractionMotivo" placeholder="Motivo" class="w-full border rounded-lg p-2">
+            <select id="editInteractionStatus" class="w-full border rounded-lg p-2">
+                <option value="🟢 NO PRAZO">🟢 NO PRAZO</option>
+                <option value="🟡 PARA HOJE">🟡 PARA HOJE</option>
+                <option value="🔴 ATRASADO">🔴 ATRASADO</option>
+                <option value="CONCLUÍDO">✅ CONCLUÍDO</option>
+            </select>
+            <textarea id="editInteractionObs" rows="2" placeholder="Observações" class="w-full border rounded-lg p-2"></textarea>
+            <input type="date" id="editInteractionRetorno" placeholder="Data retorno" class="w-full border rounded-lg p-2">
+            <button id="saveInteractionEditBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium">Atualizar</button>
+        </div>
+        <input type="hidden" id="editInteractionIndex">
+    </div>
+</div>
+
+<script>
+    // Inicialização
+    const notyf = new Notyf({ duration: 3500, position: { x: 'right', y: 'top' }, dismissible: true });
+    let clientsData = {};
+    let reminders = [];
+    let currentSelectedClient = null;
+    let currentEditInteractionIndex = null;
+
+    // ----- Funções de apoio -----
+    function getPriorityFromStatus(status) {
+        if (!status) return "cinza";
+        const s = status.toString().toLowerCase();
+        if (s.includes("atrasado") || s.includes("🔴")) return "vermelho";
+        if (s.includes("prazo") || s.includes("verde") || s.includes("🟢")) return "verde";
+        if (s.includes("hoje") || s.includes("amarelo") || s.includes("🟡")) return "amarelo";
+        return "cinza";
+    }
+
+    function getCardClass(status) {
+        const p = getPriorityFromStatus(status);
+        if (p === "verde") return "card-verde";
+        if (p === "amarelo") return "card-amarelo";
+        if (p === "vermelho") return "card-vermelho";
+        return "card-cinza";
+    }
+
+    function getBadgeClass(status) {
+        const p = getPriorityFromStatus(status);
+        if (p === "verde") return "badge-verde";
+        if (p === "amarelo") return "badge-amarelo";
+        if (p === "vermelho") return "badge-vermelho";
+        return "badge-cinza";
+    }
+
+    // Persistência
+    function persistData() {
+        localStorage.setItem("crm_consorcio_final", JSON.stringify({ clientsData, reminders }));
+    }
+
+    function loadFromLocal() {
+        const saved = localStorage.getItem("crm_consorcio_final");
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                clientsData = data.clientsData;
+                reminders = data.reminders || [];
+                return true;
+            } catch(e) {}
+        }
+        return false;
+    }
+
+    // Demo data
+    function loadDemoData() {
+        clientsData = {};
+        const demos = [
+            { cliente: "ALON NUSSBACHER", tel: "(11) 99999-1111", email: "alon@email.com", grupo: 743, cota: 369, motivo: "Reemitir boleto", dataContato: "2026-05-14", retorno: "2026-05-20", status: "🟢 NO PRAZO", obs: "Parcela 3.150,67" },
+            { cliente: "ALON NUSSBACHER", tel: "(11) 99999-1111", email: "alon@email.com", grupo: 7023, cota: 236, motivo: "Parcela vencida", dataContato: "2026-05-10", retorno: "2026-05-11", status: "🔴 ATRASADO", obs: "Urgente!" },
+            { cliente: "CITYBENS", tel: "(11) 2222-3333", email: "city@bens.com", grupo: 7030, cota: 251, motivo: "Regularizar", dataContato: "2026-05-14", retorno: "2026-05-11", status: "🔴 ATRASADO", obs: "" },
+            { cliente: "Nossa Casa", tel: "31-991582006", email: "contato@nossacasa.com", grupo: 6015, cota: 56, motivo: "Ajuste débito", dataContato: "2026-05-13", retorno: "2026-06-15", status: "🟢 NO PRAZO", obs: "" }
+        ];
+        demos.forEach(d => {
+            if (!clientsData[d.cliente]) {
+                clientsData[d.cliente] = { contatos: [], quotas: [], telefone: d.tel, email: d.email };
+            }
+            clientsData[d.cliente].contatos.push({
+                id: Date.now() + Math.random(),
+                dataContato: d.dataContato,
+                motivo: d.motivo,
+                statusRetorno: d.status,
+                observacoes: d.obs,
+                dataRetornoPrev: d.retorno
+            });
+            clientsData[d.cliente].quotas.push({ grupo: d.grupo, cota: d.cota, info: "", status: d.status });
+        });
+        reminders = [];
+        for (let cli in clientsData) {
+            clientsData[cli].contatos.forEach(c => {
+                if (c.dataRetornoPrev && c.dataRetornoPrev !== "") {
+                    reminders.push({ id: Date.now() + Math.random(), clientName: cli, dueDate: c.dataRetornoPrev, description: c.motivo?.substring(0,60) || "Retorno" });
+                }
+            });
+        }
+    }
+
+    // Renderização da lista de clientes (cards coloridos)
+    function renderClientList(filter = "") {
+        const container = document.getElementById("clientListContainer");
+        const clientNames = Object.keys(clientsData).sort();
+        const filtered = filter ? clientNames.filter(c => c.toLowerCase().includes(filter.toLowerCase())) : clientNames;
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="p-4 text-center text-gray-400">Nenhum cliente encontrado</div>';
+            return;
+        }
+        container.innerHTML = filtered.map(cli => {
+            const client = clientsData[cli];
+            const lastStatus = client.contatos.length ? client.contatos[client.contatos.length-1].statusRetorno : null;
+            const cardClass = getCardClass(lastStatus);
+            return `
+                <div class="client-item p-3 cursor-pointer transition-all flex justify-between items-center ${currentSelectedClient === cli ? 'client-active bg-blue-50' : ''} ${cardClass} client-card" data-client="${escapeHtml(cli)}">
+                    <div><i class="fas fa-user-circle text-gray-500 mr-2"></i><span class="font-medium">${escapeHtml(cli)}</span></div>
+                    <div class="flex gap-2">
+                        <span class="text-xs text-gray-500"><i class="far fa-comment-dots"></i> ${client.contatos.length}</span>
+                        <button class="edit-client-icon text-blue-500 hover:text-blue-700" data-client="${escapeHtml(cli)}"><i class="fas fa-edit"></i></button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        // Eventos
+        document.querySelectorAll('.client-item').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('.edit-client-icon')) return;
+                const name = el.getAttribute('data-client');
+                if (name) selectClient(name);
+            });
+        });
+        document.querySelectorAll('.edit-client-icon').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const name = btn.getAttribute('data-client');
+                openEditClientModal(name);
+            });
+        });
+    }
+
+    function selectClient(clientName) {
+        currentSelectedClient = clientName;
+        renderClientList(document.getElementById("searchClient").value);
+        const client = clientsData[clientName];
+        if (!client) return;
+        document.getElementById("selectedClientName").innerText = clientName;
+        document.getElementById("selectedClientContact").innerHTML = `<span><i class="fas fa-phone-alt mr-1"></i> ${client.telefone || '-'}</span> <span><i class="fas fa-envelope mr-1"></i> ${client.email || '-'}</span>`;
+        
+        // Histórico
+        const tbody = document.getElementById("historyTableBody");
+        if (!client.contatos.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-gray-400">Nenhuma interação</td></tr>';
+        } else {
+            tbody.innerHTML = client.contatos.map((c, idx) => `
+                <tr class="border-b">
+                    <td class="px-3 py-2">${c.dataContato || '-'}</td>
+                    <td class="px-3 py-2 max-w-xs">${escapeHtml(c.motivo) || '-'}</td>
+                    <td class="px-3 py-2"><span class="status-badge ${getBadgeClass(c.statusRetorno)}">${c.statusRetorno || '-'}</span></td>
+                    <td class="px-3 py-2 max-w-md">${escapeHtml(c.observacoes) || '-'}</td>
+                    <td class="px-3 py-2"><button class="edit-interaction-btn text-blue-500 hover:text-blue-700" data-index="${idx}"><i class="fas fa-edit"></i></button></td>
+                </tr>
+            `).join('');
+        }
+        // Cotas
+        const quotasDiv = document.getElementById("quotasInfo");
+        if (client.quotas?.length) {
+            quotasDiv.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${client.quotas.map((q, idx) => `
+                    <div class="border rounded-lg p-3 bg-gray-50 relative">
+                        <button class="edit-quota-btn absolute top-2 right-2 text-blue-500 hover:text-blue-700" data-index="${idx}"><i class="fas fa-edit"></i></button>
+                        <div class="flex justify-between font-bold"><span>Grupo: ${q.grupo || '-'}</span><span>Cota: ${q.cota || '-'}</span></div>
+                        <div class="text-sm mt-1"><span class="status-badge ${getBadgeClass(q.status)}">${q.status || "Pendente"}</span></div>
+                        <div class="text-xs text-gray-600 mt-2">${escapeHtml(q.info || '')}</div>
+                    </div>
+                `).join('')}
+            </div>`;
+        } else {
+            quotasDiv.innerHTML = '<p class="text-gray-400">Nenhuma cota cadastrada.</p>';
+        }
+        // Eventos de edição
+        document.querySelectorAll('.edit-interaction-btn').forEach(btn => {
+            btn.addEventListener('click', () => openEditInteractionModal(parseInt(btn.dataset.index)));
+        });
+        document.querySelectorAll('.edit-quota-btn').forEach(btn => {
+            btn.addEventListener('click', () => openEditQuotaModal(parseInt(btn.dataset.index)));
+        });
+    }
+
+    // Lembretes
+    function renderReminders() {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const pendentes = reminders.filter(r => new Date(r.dueDate) < today);
+        const agendados = reminders.filter(r => new Date(r.dueDate) >= today);
+        pendentes.sort((a,b)=>new Date(b.dueDate)-new Date(a.dueDate));
+        agendados.sort((a,b)=>new Date(a.dueDate)-new Date(b.dueDate));
+        
+        const containerPend = document.getElementById("remindersListPendentes");
+        containerPend.innerHTML = pendentes.length ? pendentes.map(r => `
+            <div class="bg-red-50 border-l-4 border-red-500 rounded-md p-2 text-sm flex justify-between">
+                <div><i class="fas fa-exclamation-triangle text-red-500 mr-1"></i> <strong>${escapeHtml(r.clientName)}</strong><br><span class="text-xs">Venceu em ${r.dueDate}</span><div class="text-gray-600">${escapeHtml(r.description)}</div></div>
+                <button class="remove-reminder text-red-500" data-id="${r.id}"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        `).join('') : '<div class="text-gray-400 italic text-center">Nenhum lembrete pendente</div>';
+        
+        const containerAgend = document.getElementById("remindersListAgendados");
+        containerAgend.innerHTML = agendados.length ? agendados.map(r => `
+            <div class="bg-blue-50 border-l-4 border-blue-500 rounded-md p-2 text-sm flex justify-between">
+                <div><i class="far fa-calendar-alt text-blue-500 mr-1"></i> <strong>${escapeHtml(r.clientName)}</strong><br><span class="text-xs">${r.dueDate}</span><div class="text-gray-600">${escapeHtml(r.description)}</div></div>
+                <button class="remove-reminder text-red-500" data-id="${r.id}"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        `).join('') : '<div class="text-gray-400 italic text-center">Nenhum lembrete futuro</div>';
+        
+        document.querySelectorAll('.remove-reminder').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = parseInt(btn.dataset.id);
+                reminders = reminders.filter(r => r.id !== id);
+                persistData();
+                renderReminders();
+                notyf.success("Lembrete removido");
+            });
+        });
+    }
+
+    // Funções de edição (cliente, interação, cota)
+    function openEditClientModal(clientName) {
+        const client = clientsData[clientName];
+        if (!client) return;
+        document.getElementById("editClientName").value = clientName;
+        document.getElementById("editClientPhone").value = client.telefone || "";
+        document.getElementById("editClientEmail").value = client.email || "";
+        document.getElementById("editClientModal").classList.remove("hidden");
+        
+        const confirmBtn = document.getElementById("confirmEditClientBtn");
+        const newBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+        newBtn.addEventListener('click', () => {
+            const newName = document.getElementById("editClientName").value.trim();
+            if (!newName) { notyf.error("Nome obrigatório"); return; }
+            if (newName !== clientName) {
+                clientsData[newName] = { ...client };
+                delete clientsData[clientName];
+                reminders.forEach(r => { if (r.clientName === clientName) r.clientName = newName; });
+                if (currentSelectedClient === clientName) currentSelectedClient = newName;
+            }
+            clientsData[newName].telefone = document.getElementById("editClientPhone").value;
+            clientsData[newName].email = document.getElementById("editClientEmail").value;
+            persistData();
+            renderClientList();
+            selectClient(newName);
+            renderReminders();
+            document.getElementById("editClientModal").classList.add("hidden");
+            notyf.success("Cliente atualizado");
+        });
+    }
+    
+    function openEditInteractionModal(index) {
+        if (!currentSelectedClient) return;
+        const interaction = clientsData[currentSelectedClient].contatos[index];
+        if (!interaction) return;
+        currentEditInteractionIndex = index;
+        document.getElementById("editInteractionDate").value = interaction.dataContato || "";
+        document.getElementById("editInteractionMotivo").value = interaction.motivo || "";
+        document.getElementById("editInteractionStatus").value = interaction.statusRetorno || "🟢 NO PRAZO";
+        document.getElementById("editInteractionObs").value = interaction.observacoes || "";
+        document.getElementById("editInteractionRetorno").value = interaction.dataRetornoPrev || "";
+        document.getElementById("editInteractionModal").classList.remove("hidden");
+        
+        const saveBtn = document.getElementById("saveInteractionEditBtn");
+        const newSave = saveBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSave, saveBtn);
+        newSave.addEventListener('click', () => {
+            interaction.dataContato = document.getElementById("editInteractionDate").value;
+            interaction.motivo = document.getElementById("editInteractionMotivo").value;
+            interaction.statusRetorno = document.getElementById("editInteractionStatus").value;
+            interaction.observacoes = document.getElementById("editInteractionObs").value;
+            interaction.dataRetornoPrev = document.getElementById("editInteractionRetorno").value;
+            // Atualiza lembrete associado
+            reminders = reminders.filter(r => !(r.clientName === currentSelectedClient && r.description === interaction.motivo && r.dueDate === interaction.dataRetornoPrev));
+            if (interaction.dataRetornoPrev && interaction.dataRetornoPrev !== "") {
+                reminders.push({ id: Date.now(), clientName: currentSelectedClient, dueDate: interaction.dataRetornoPrev, description: interaction.motivo?.substring(0,60) });
+            }
+            persistData();
+            selectClient(currentSelectedClient);
+            renderReminders();
+            document.getElementById("editInteractionModal").classList.add("hidden");
+            notyf.success("Interação atualizada");
+        });
+    }
+    
+    function openEditQuotaModal(index) {
+        if (!currentSelectedClient) return;
+        const quota = clientsData[currentSelectedClient].quotas[index];
+        const newGrupo = prompt("Novo número do Grupo:", quota.grupo);
+        if (newGrupo !== null) quota.grupo = newGrupo;
+        const newCota = prompt("Nova Cota:", quota.cota);
+        if (newCota !== null) quota.cota = newCota;
+        const newStatus = prompt("Status (ex: 🟢 NO PRAZO, 🔴 ATRASADO):", quota.status);
+        if (newStatus !== null) quota.status = newStatus;
+        const newInfo = prompt("Informações importantes:", quota.info);
+        if (newInfo !== null) quota.info = newInfo;
+        persistData();
+        selectClient(currentSelectedClient);
+        notyf.success("Cota atualizada");
+    }
+
+    // Adicionar nova interação
+    function addInteraction(clientName, motivo, obs, retornoDate) {
+        const client = clientsData[clientName];
+        if (!client) return;
+        const newInteraction = {
+            id: Date.now(),
+            dataContato: new Date().toISOString().slice(0,10),
+            motivo: motivo || "Contato",
+            statusRetorno: retornoDate ? "🟡 AGENDADO" : "Sem Data",
+            observacoes: obs || "",
+            dataRetornoPrev: retornoDate || ""
+        };
+        client.contatos.unshift(newInteraction);
+        if (retornoDate) {
+            reminders.push({ id: Date.now(), clientName, dueDate: retornoDate, description: motivo?.substring(0,60) || "Retorno" });
+        }
+        persistData();
+        selectClient(clientName);
+        renderReminders();
+        notyf.success("Interação salva");
+    }
+
+    // Novo cliente
+    function addNewClient() {
+        let name = prompt("Nome completo do novo cliente:");
+        if (!name) return;
+        name = name.trim();
+        if (clientsData[name]) { notyf.error("Cliente já existe"); return; }
+        clientsData[name] = { contatos: [], quotas: [], telefone: "", email: "" };
+        persistData();
+        renderClientList();
+        selectClient(name);
+        notyf.success(`Cliente ${name} criado`);
+    }
+
+    // Importar planilha (aba Base de Dados)
+    function importExcel(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets['Base de Dados'];
+            if (!sheet) { notyf.error("Aba 'Base de Dados' não encontrada"); return; }
+            const rows = XLSX.utils.sheet_to_json(sheet);
+            if (!rows.length) { notyf.error("Nenhum dado na planilha"); return; }
+            const newClients = {};
+            rows.forEach(row => {
+                const nome = row["Nome do Cliente"] || row["Nome Cliente"] || "Cliente desconhecido";
+                if (!newClients[nome]) newClients[nome] = { contatos: [], quotas: [], telefone: row["Telefone"] || "", email: row["E-mail"] || "" };
+                const contato = {
+                    id: Date.now() + Math.random(),
+                    dataContato: row["Data do Último Contato"] ? new Date(row["Data do Último Contato"]).toISOString().slice(0,10) : "",
+                    motivo: row["Motivo do Contato / Ação"] || "",
+                    statusRetorno: row["Status do Retorno (Alerta)"] || "Sem Data",
+                    observacoes: row["Observações Gerais"] || "",
+                    dataRetornoPrev: row["Data Prevista para Retorno"] ? new Date(row["Data Prevista para Retorno"]).toISOString().slice(0,10) : ""
+                };
+                newClients[nome].contatos.push(contato);
+                newClients[nome].quotas.push({ grupo: row["Grupo"] || "", cota: row["Cota"] || "", info: row["Informações Importantes"] || "", status: contato.statusRetorno });
+            });
+            clientsData = newClients;
+            reminders = [];
+            for (let cli in clientsData) {
+                clientsData[cli].contatos.forEach(c => {
+                    if (c.dataRetornoPrev && c.dataRetornoPrev !== "") {
+                        reminders.push({ id: Date.now() + Math.random(), clientName: cli, dueDate: c.dataRetornoPrev, description: c.motivo?.substring(0,60) });
+                    }
+                });
+            }
+            persistData();
+            renderClientList();
+            renderReminders();
+            if (Object.keys(clientsData).length) selectClient(Object.keys(clientsData)[0]);
+            notyf.success(`Importados ${Object.keys(clientsData).length} clientes`);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function escapeHtml(str) { if (!str) return ""; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    // Eventos e inicialização
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!loadFromLocal()) loadDemoData();
+        persistData();
+        renderClientList();
+        renderReminders();
+        if (Object.keys(clientsData).length) selectClient(Object.keys(clientsData)[0]);
+        
+        // Filtro
+        document.getElementById("searchClient").addEventListener("input", (e) => renderClientList(e.target.value));
+        document.getElementById("importBtn").addEventListener("click", () => {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = '.xlsx, .xls';
+            input.onchange = (e) => { if (e.target.files[0]) importExcel(e.target.files[0]); };
+            input.click();
+        });
+        document.getElementById("resetBtn").addEventListener("click", () => { loadDemoData(); persistData(); renderClientList(); renderReminders(); if (Object.keys(clientsData).length) selectClient(Object.keys(clientsData)[0]); notyf.success("Dados de demonstração restaurados"); });
+        document.getElementById("newClientBtn").addEventListener("click", addNewClient);
+        document.getElementById("editClientBtn").addEventListener("click", () => { if (currentSelectedClient) openEditClientModal(currentSelectedClient); else notyf.error("Selecione um cliente"); });
+        document.getElementById("addQuotaBtn").addEventListener("click", () => {
+            if (!currentSelectedClient) { notyf.error("Selecione um cliente"); return; }
+            clientsData[currentSelectedClient].quotas.push({ grupo: "", cota: "", info: "", status: "🟢 NO PRAZO" });
+            persistData();
+            selectClient(currentSelectedClient);
+            notyf.success("Nova cota adicionada, edite os dados clicando no lápis");
+        });
+        document.getElementById("saveInteractionBtn").addEventListener("click", () => {
+            if (!currentSelectedClient) { notyf.error("Selecione um cliente"); return; }
+            const motivo = document.getElementById("newMotivo").value;
+            const obs = document.getElementById("newObs").value;
+            const retorno = document.getElementById("newRetornoDate").value;
+            if (!motivo && !obs && !retorno) { notyf.warning("Preencha ao menos um campo"); return; }
+            addInteraction(currentSelectedClient, motivo, obs, retorno);
+            document.getElementById("newMotivo").value = "";
+            document.getElementById("newObs").value = "";
+            document.getElementById("newRetornoDate").value = "";
+        });
+        
+        // Modais de lembrete
+        document.getElementById("addReminderBtn").onclick = () => {
+            const select = document.getElementById("modalClientSelect");
+            select.innerHTML = Object.keys(clientsData).map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+            document.getElementById("reminderModal").classList.remove("hidden");
+        };
+        document.getElementById("quickReminderBtn").onclick = () => {
+            if (currentSelectedClient) {
+                document.getElementById("modalClientSelect").value = currentSelectedClient;
+                document.getElementById("reminderModal").classList.remove("hidden");
+            } else notyf.error("Selecione um cliente");
+        };
+        document.getElementById("closeModal").onclick = () => document.getElementById("reminderModal").classList.add("hidden");
+        document.getElementById("closeEditModal").onclick = () => document.getElementById("editClientModal").classList.add("hidden");
+        document.getElementById("confirmReminderBtn").onclick = () => {
+            const cli = document.getElementById("modalClientSelect").value;
+            const date = document.getElementById("modalReminderDate").value;
+            const desc = document.getElementById("modalReminderDesc").value;
+            if (!cli || !date) { notyf.error("Preencha cliente e data"); return; }
+            reminders.push({ id: Date.now(), clientName: cli, dueDate: date, description: desc || "Lembrete manual" });
+            persistData();
+            renderReminders();
+            document.getElementById("reminderModal").classList.add("hidden");
+            notyf.success("Lembrete criado");
+        };
+        
+        // Tabs de histórico/cotas
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const tab = btn.dataset.tab;
+                document.querySelectorAll(".tab-content").forEach(t => t.classList.add("hidden"));
+                document.getElementById(tab + "Tab").classList.remove("hidden");
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("border-blue-600", "text-blue-700"));
+                btn.classList.add("border-blue-600", "text-blue-700");
+            });
+        });
+        document.querySelectorAll(".reminder-tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const tab = btn.dataset.reminderTab;
+                document.getElementById("remindersListPendentes").classList.add("hidden");
+                document.getElementById("remindersListAgendados").classList.add("hidden");
+                document.getElementById(`remindersList${tab === "pendentes" ? "Pendentes" : "Agendados"}`).classList.remove("hidden");
+                document.querySelectorAll(".reminder-tab-btn").forEach(b => b.classList.remove("reminder-tab-active"));
+                btn.classList.add("reminder-tab-active");
+            });
+        });
+    });
+</script>
+</body>
+</html>
