@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>CityBens | Gestão Financeira</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0c10;
+            color: #eef2ff;
+            padding: 24px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1f25;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2c3e66;
+            border-radius: 10px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #1e2a3a;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #1e3a8a, #0f172a);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 24px;
+            color: #94a3f8;
+        }
+        .logo-text h1 {
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #94a3f8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .logo-text p {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .header-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #111318;
+            border-radius: 20px;
+            padding: 12px 24px;
+            min-width: 140px;
+            border: 1px solid #1e2a3a;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-bottom: 6px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #facc15;
+        }
+        .stat-value.small {
+            font-size: 20px;
+        }
+
+        /* Barra de ações */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+            background: #0f1117;
+            padding: 16px 24px;
+            border-radius: 24px;
+            border: 1px solid #1e293b;
+        }
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #9ca3af;
+            text-transform: uppercase;
+        }
+        select, input {
+            background: #1a1c23;
+            border: 1px solid #2d3748;
+            border-radius: 12px;
+            padding: 8px 14px;
+            color: #eef2ff;
+            font-size: 14px;
+            outline: none;
+        }
+        select:focus, input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+        .btn {
+            border: none;
+            border-radius: 12px;
+            padding: 8px 20px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        .btn-primary {
+            background: linear-gradient(95deg, #1e3a8a, #2563eb);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(95deg, #1e40af, #3b82f6);
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #334155;
+        }
+        .btn-outline:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .btn-add {
+            background: #10b981;
+            color: white;
+        }
+        .btn-add:hover {
+            background: #059669;
+        }
+
+        /* Tabela */
+        .table-wrapper {
+            background: #0f1117;
+            border-radius: 24px;
+            border: 1px solid #1e293b;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+        th {
+            text-align: left;
+            padding: 18px 16px;
+            background: #0a0c10;
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #1e293b;
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #1a1e2a;
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+        tr:hover td {
+            background-color: #13161f;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-ativo { background: #1e3a8a20; color: #60a5fa; border: 1px solid #2563eb40; }
+        .status-contemplado { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
+        .status-pago { background: #10b98120; color: #34d399; border: 1px solid #10b98140; }
+        .alerta-cell {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+            display: inline-block;
+        }
+        .alerta-atrasado { background: #7f1a1a; color: #fca5a5; }
+        .alerta-vence { background: #b45309; color: #fed7aa; }
+        .alerta-3dias { background: #854d0e; color: #fde047; }
+        .alerta-ok { background: #14532d; color: #86efac; }
+        .action-icons i {
+            font-size: 18px;
+            margin: 0 6px;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+        .action-icons i:hover {
+            color: #facc15;
+        }
+        .valor-cell {
+            font-weight: 600;
+            color: #facc15;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #111318;
+            border-radius: 32px;
+            max-width: 550px;
+            width: 90%;
+            padding: 28px;
+            border: 1px solid #2d3a5e;
+        }
+        .modal-content h3 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #facc15;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-field.full {
+            grid-column: span 2;
+        }
+        .form-field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #9ca3af;
+        }
+        .form-field input, .form-field select {
+            background: #1a1c23;
+            border: 1px solid #2d3748;
+            border-radius: 14px;
+            padding: 10px 14px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        footer {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 12px;
+            color: #4b5563;
+        }
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .filter-group { width: 100%; }
+            .filters { width: 100%; }
+            .action-bar { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <div class="logo-icon">CB</div>
+            <div class="logo-text">
+                <h1>CityBens</h1>
+                <p>Gestão Financeira • Controle de Cobranças</p>
+            </div>
+        </div>
+        <div class="header-stats">
+            <div class="stat-card"><div class="stat-label">Total de registros</div><div class="stat-value" id="totalRegistros">0</div></div>
+            <div class="stat-card"><div class="stat-label">Alertas críticos</div><div class="stat-value" id="totalAlertas">0</div></div>
+            <div class="stat-card"><div class="stat-label">Valor em carteira</div><div class="stat-value small" id="valorTotal">R$ 0</div></div>
+        </div>
+    </div>
+
+    <div class="action-bar">
+        <div class="filters">
+            <div class="filter-group"><label>Responsável</label><select id="filterResponsavel"><option value="">Todos</option></select></div>
+            <div class="filter-group"><label>Empresa</label><select id="filterEmpresa"><option value="">Todos</option></select></div>
+            <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
+            <div class="filter-group"><label>Alerta</label><select id="filterAlerta"><option value="">Todos</option><option>🚨 ATRASADO</option><option>🔥 VENCE HOJE</option><option>⚠️ 3 DIAS</option><option>✅ OK</option></select></div>
+            <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, email..."></div>
+            <button class="btn btn-primary" onclick="aplicarFiltros()"><i class="fas fa-search"></i> Filtrar</button>
+            <button class="btn btn-outline" onclick="limparFiltros()"><i class="fas fa-undo-alt"></i> Limpar</button>
+        </div>
+        <button class="btn btn-add" id="btnNovoRegistro"><i class="fas fa-plus"></i> Novo registro</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="dataTable">
+            <thead>
+                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Dias</th><th>Email</th><th style="width:70px">Ações</th></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para começar.</div>
+    </div>
+    <footer>© 2026 CityBens — Dados salvos localmente. Edição completa.</footer>
+</div>
+
+<!-- MODAL EDITAR / NOVO -->
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <h3 id="modalTitle">Novo registro</h3>
+        <div class="form-grid">
+            <div class="form-field"><label>Responsável</label><input type="text" id="editResponsavel"></div>
+            <div class="form-field"><label>Empresa</label><input type="text" id="editEmpresa"></div>
+            <div class="form-field"><label>Administradora</label><input type="text" id="editAdministradora"></div>
+            <div class="form-field"><label>Grupo</label><input type="text" id="editGrupo"></div>
+            <div class="form-field"><label>Cota</label><input type="text" id="editCota"></div>
+            <div class="form-field"><label>Dia vencimento</label><input type="number" id="editDiaVenc" value="1"></div>
+            <div class="form-field"><label>Valor (R$)</label><input type="number" step="0.01" id="editValor" value="0"></div>
+            <div class="form-field"><label>Status</label><select id="editStatus"><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
+            <div class="form-field"><label>Canal</label><input type="text" id="editCanal"></div>
+            <div class="form-field"><label>Alerta</label><select id="editAlerta"><option>🚨 ATRASADO</option><option>🔥 VENCE HOJE</option><option>⚠️ 3 DIAS</option><option>✅ OK</option></select></div>
+            <div class="form-field"><label>Dias (offset)</label><input type="number" id="editDias" value="0"></div>
+            <div class="form-field full"><label>Email</label><input type="email" id="editEmail"></div>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-outline" id="btnCancelarModal">Cancelar</button>
+            <button class="btn btn-primary" id="btnSalvarModal">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Inicialmente, nenhum dado de exemplo
+    let dados = [];
+    let currentEditId = null;
+
+    // Salvar no localStorage
+    function salvarLocal() {
+        localStorage.setItem("citybens_dados", JSON.stringify(dados));
+    }
+
+    // Carregar do localStorage ou iniciar vazio
+    function carregarOuInicializar() {
+        const saved = localStorage.getItem("citybens_dados");
+        if (saved) {
+            dados = JSON.parse(saved);
+        } else {
+            dados = []; // completamente vazio
+        }
+        atualizarFiltrosSelect();
+        aplicarFiltros();
+    }
+
+    // Função auxiliar para calcular dias restantes baseado no dia do vencimento (considerando mês atual ou próximo)
+    function calcularDiasVencimento(diaVenc) {
+        if (!diaVenc) return 999;
+        const hoje = new Date();
+        const ano = hoje.getFullYear();
+        let mes = hoje.getMonth();
+        let dataVenc = new Date(ano, mes, diaVenc);
+        if (dataVenc < hoje) {
+            dataVenc = new Date(ano, mes + 1, diaVenc);
+        }
+        const diff = Math.ceil((dataVenc - hoje) / (1000 * 60 * 60 * 24));
+        return diff;
+    }
+
+    // Atualizar alerta e dias com base no dia de vencimento
+    function atualizarAlertaEDias(registro) {
+        const diff = calcularDiasVencimento(registro.dia_vencimento);
+        registro.dias_vencimento = diff;
+        if (diff < 0) registro.alerta = "🚨 ATRASADO";
+        else if (diff === 0) registro.alerta = "🔥 VENCE HOJE";
+        else if (diff <= 3) registro.alerta = "⚠️ 3 DIAS";
+        else registro.alerta = "✅ OK";
+        return registro;
+    }
+
+    function getClasseAlerta(alerta) {
+        if (alerta.includes("ATRASADO")) return "alerta-atrasado";
+        if (alerta.includes("VENCE HOJE")) return "alerta-vence";
+        if (alerta.includes("3 DIAS")) return "alerta-3dias";
+        return "alerta-ok";
+    }
+
+    function renderizarTabela(filtrados) {
+        const tbody = document.getElementById('tableBody');
+        const emptyDiv = document.getElementById('emptyState');
+        if (!filtrados.length) {
+            tbody.innerHTML = '';
+            emptyDiv.style.display = 'block';
+            document.getElementById('totalRegistros').innerText = '0';
+            document.getElementById('totalAlertas').innerText = '0';
+            document.getElementById('valorTotal').innerHTML = 'R$ 0';
+            return;
+        }
+        emptyDiv.style.display = 'none';
+        tbody.innerHTML = filtrados.map(item => {
+            const alertaClass = getClasseAlerta(item.alerta);
+            return `<tr>
+                <td>${escapeHtml(item.responsavel)}</td>
+                <td>${escapeHtml(item.empresa)}</td>
+                <td>${escapeHtml(item.administradora)}</td>
+                <td>${escapeHtml(item.grupo)}</td>
+                <td>${escapeHtml(item.cota)}</td>
+                <td>${item.dia_vencimento}/mês</td>
+                <td class="valor-cell">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+                <td><span class="status-badge status-${item.status.toLowerCase()}">${item.status}</span></td>
+                <td>${escapeHtml(item.canal)}</td>
+                <td><span class="alerta-cell ${alertaClass}">${item.alerta}</span></td>
+                <td><strong>${item.dias_vencimento}</strong></td>
+                <td><a href="mailto:${escapeHtml(item.email)}" style="color:#94a3f8;">✉️</a></td>
+                <td class="action-icons">
+                    <i class="fas fa-edit" onclick="abrirEdicao(${item.id})"></i>
+                    <i class="fas fa-trash-alt" onclick="excluirRegistro(${item.id})"></i>
+                </td>
+            </tr>`;
+        }).join('');
+
+        const total = filtrados.length;
+        const alertasCriticos = filtrados.filter(f => f.dias_vencimento <= 3 || f.dias_vencimento < 0).length;
+        const somaValor = filtrados.reduce((acc, f) => acc + f.valor, 0);
+        document.getElementById('totalRegistros').innerText = total;
+        document.getElementById('totalAlertas').innerText = alertasCriticos;
+        document.getElementById('valorTotal').innerHTML = 'R$ ' + somaValor.toLocaleString('pt-BR', {maximumFractionDigits:2});
+    }
+
+    function aplicarFiltros() {
+        const resp = document.getElementById('filterResponsavel').value;
+        const empresa = document.getElementById('filterEmpresa').value;
+        const status = document.getElementById('filterStatus').value;
+        const alerta = document.getElementById('filterAlerta').value;
+        const busca = document.getElementById('searchBox').value.toLowerCase();
+
+        let filtrados = dados.filter(item => {
+            if (resp && item.responsavel !== resp) return false;
+            if (empresa && item.empresa !== empresa) return false;
+            if (status && item.status !== status) return false;
+            if (alerta && item.alerta !== alerta) return false;
+            if (busca && !item.grupo.toLowerCase().includes(busca) && !item.cota.toLowerCase().includes(busca) && !item.email.toLowerCase().includes(busca)) return false;
+            return true;
+        });
+        renderizarTabela(filtrados);
+    }
+
+    function atualizarFiltrosSelect() {
+        const responsaveis = [...new Set(dados.map(d => d.responsavel))];
+        const empresas = [...new Set(dados.map(d => d.empresa))];
+        const selectResp = document.getElementById('filterResponsavel');
+        const selectEmp = document.getElementById('filterEmpresa');
+        selectResp.innerHTML = '<option value="">Todos</option>' + responsaveis.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+        selectEmp.innerHTML = '<option value="">Todos</option>' + empresas.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join('');
+    }
+
+    function abrirEdicao(id) {
+        const registro = dados.find(r => r.id === id);
+        if (!registro) return;
+        currentEditId = id;
+        document.getElementById('modalTitle').innerText = '✏️ Editar registro';
+        document.getElementById('editResponsavel').value = registro.responsavel;
+        document.getElementById('editEmpresa').value = registro.empresa;
+        document.getElementById('editAdministradora').value = registro.administradora;
+        document.getElementById('editGrupo').value = registro.grupo;
+        document.getElementById('editCota').value = registro.cota;
+        document.getElementById('editDiaVenc').value = registro.dia_vencimento;
+        document.getElementById('editValor').value = registro.valor;
+        document.getElementById('editStatus').value = registro.status;
+        document.getElementById('editCanal').value = registro.canal;
+        document.getElementById('editAlerta').value = registro.alerta;
+        document.getElementById('editDias').value = registro.dias_vencimento;
+        document.getElementById('editEmail').value = registro.email;
+        document.getElementById('modalEditar').style.display = 'flex';
+    }
+
+    function salvarEdicao() {
+        const diaVenc = parseInt(document.getElementById('editDiaVenc').value) || 1;
+        const valor = parseFloat(document.getElementById('editValor').value) || 0;
+        const novoRegistro = {
+            id: currentEditId || Date.now(),
+            responsavel: document.getElementById('editResponsavel').value,
+            empresa: document.getElementById('editEmpresa').value,
+            administradora: document.getElementById('editAdministradora').value,
+            grupo: document.getElementById('editGrupo').value,
+            cota: document.getElementById('editCota').value,
+            dia_vencimento: diaVenc,
+            valor: valor,
+            status: document.getElementById('editStatus').value,
+            canal: document.getElementById('editCanal').value,
+            alerta: document.getElementById('editAlerta').value,
+            dias_vencimento: parseInt(document.getElementById('editDias').value) || 0,
+            email: document.getElementById('editEmail').value,
+        };
+        // recalcular dias e alerta baseado no dia de vencimento
+        const diffRecalc = calcularDiasVencimento(novoRegistro.dia_vencimento);
+        novoRegistro.dias_vencimento = diffRecalc;
+        if (diffRecalc < 0) novoRegistro.alerta = "🚨 ATRASADO";
+        else if (diffRecalc === 0) novoRegistro.alerta = "🔥 VENCE HOJE";
+        else if (diffRecalc <= 3) novoRegistro.alerta = "⚠️ 3 DIAS";
+        else novoRegistro.alerta = "✅ OK";
+
+        if (currentEditId) {
+            const index = dados.findIndex(r => r.id === currentEditId);
+            if (index !== -1) dados[index] = novoRegistro;
+        } else {
+            dados.push(novoRegistro);
+        }
+        salvarLocal();
+        atualizarFiltrosSelect();
+        aplicarFiltros();
+        fecharModal();
+    }
+
+    function excluirRegistro(id) {
+        if (confirm('Tem certeza que deseja excluir este registro permanentemente?')) {
+            dados = dados.filter(r => r.id !== id);
+            salvarLocal();
+            atualizarFiltrosSelect();
+            aplicarFiltros();
+        }
+    }
+
+    function limparFiltros() {
+        document.getElementById('filterResponsavel').value = '';
+        document.getElementById('filterEmpresa').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterAlerta').value = '';
+        document.getElementById('searchBox').value = '';
+        aplicarFiltros();
+    }
+
+    function novoRegistro() {
+        currentEditId = null;
+        document.getElementById('modalTitle').innerText = '➕ Novo registro';
+        document.getElementById('editResponsavel').value = '';
+        document.getElementById('editEmpresa').value = '';
+        document.getElementById('editAdministradora').value = '';
+        document.getElementById('editGrupo').value = '';
+        document.getElementById('editCota').value = '';
+        document.getElementById('editDiaVenc').value = '1';
+        document.getElementById('editValor').value = '0';
+        document.getElementById('editStatus').value = 'Ativo';
+        document.getElementById('editCanal').value = '';
+        document.getElementById('editAlerta').value = '✅ OK';
+        document.getElementById('editDias').value = '0';
+        document.getElementById('editEmail').value = '';
+        document.getElementById('modalEditar').style.display = 'flex';
+    }
+
+    function fecharModal() {
+        document.getElementById('modalEditar').style.display = 'none';
+    }
+
+    function escapeHtml(str) { 
+        if (!str) return ''; 
+        return str.replace(/[&<>]/g, function(m){
+            if(m==='&') return '&amp;';
+            if(m==='<') return '&lt;';
+            if(m==='>') return '&gt;';
+            return m;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarOuInicializar();
+        document.getElementById('btnNovoRegistro').addEventListener('click', novoRegistro);
+        document.getElementById('btnCancelarModal').addEventListener('click', fecharModal);
+        document.getElementById('btnSalvarModal').addEventListener('click', salvarEdicao);
+        window.addEventListener('click', (e) => { if(e.target === document.getElementById('modalEditar')) fecharModal(); });
+        document.getElementById('searchBox').addEventListener('keypress', (e) => { if(e.key === 'Enter') aplicarFiltros(); });
+    });
+</script>
+</body>
+</html>
