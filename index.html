@@ -184,6 +184,13 @@
         .btn-add:hover {
             background: #059669;
         }
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
 
         /* Tabela */
         .table-wrapper {
@@ -195,11 +202,11 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1000px;
+            min-width: 1100px;
         }
         th {
             text-align: left;
-            padding: 18px 16px;
+            padding: 18px 12px;
             background: #0a0c10;
             color: #cbd5e1;
             font-weight: 600;
@@ -208,9 +215,9 @@
             border-bottom: 1px solid #1e293b;
         }
         td {
-            padding: 14px 16px;
+            padding: 12px;
             border-bottom: 1px solid #1a1e2a;
-            font-size: 14px;
+            font-size: 13px;
             color: #e2e8f0;
         }
         tr:hover td {
@@ -250,6 +257,12 @@
             font-weight: 600;
             color: #facc15;
         }
+        .obs-cell {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
         /* Modal */
         .modal {
@@ -268,8 +281,10 @@
         .modal-content {
             background: #111318;
             border-radius: 32px;
-            max-width: 550px;
-            width: 90%;
+            max-width: 900px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
             padding: 28px;
             border: 1px solid #2d3a5e;
         }
@@ -282,6 +297,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
+            margin-bottom: 24px;
         }
         .form-field {
             display: flex;
@@ -296,11 +312,57 @@
             font-weight: 600;
             color: #9ca3af;
         }
-        .form-field input, .form-field select {
+        .form-field input, .form-field select, .form-field textarea {
             background: #1a1c23;
             border: 1px solid #2d3748;
             border-radius: 14px;
             padding: 10px 14px;
+            color: #eef2ff;
+            font-family: inherit;
+        }
+        .form-field textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        .itens-section {
+            margin-top: 20px;
+            border-top: 1px solid #2d3748;
+            padding-top: 20px;
+        }
+        .itens-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .itens-header h4 {
+            color: #94a3f8;
+        }
+        .itens-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        .itens-table th, .itens-table td {
+            padding: 8px;
+            border: 1px solid #2d3748;
+            text-align: left;
+            font-size: 13px;
+        }
+        .itens-table th {
+            background: #1a1c23;
+        }
+        .itens-table input, .itens-table select {
+            width: 100%;
+            padding: 6px;
+            font-size: 12px;
+        }
+        .btn-remove-item {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 16px;
         }
         .modal-buttons {
             display: flex;
@@ -319,16 +381,15 @@
             font-size: 12px;
             color: #4b5563;
         }
-        /* Responsividade do modal (correção) */
-        @media (max-width: 550px) {
-            .form-grid { grid-template-columns: 1fr; }
-            .form-field.full { grid-column: span 1; }
-        }
         @media (max-width: 768px) {
             body { padding: 16px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .form-field.full { grid-column: span 1; }
             .filter-group { width: 100%; }
             .filters { width: 100%; }
             .action-bar { flex-direction: column; align-items: stretch; }
+            .modal-content { padding: 16px; }
+            .itens-table { font-size: 11px; }
         }
     </style>
 </head>
@@ -355,95 +416,152 @@
             <div class="filter-group"><label>Empresa</label><select id="filterEmpresa"><option value="">Todos</option></select></div>
             <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
             <div class="filter-group"><label>Alerta</label><select id="filterAlerta"><option value="">Todos</option><option>🚨 ATRASADO</option><option>🔥 VENCE HOJE</option><option>⚠️ 3 DIAS</option><option>✅ OK</option></select></div>
-            <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, email..."></div>
+            <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, obs..."></div>
             <button class="btn btn-primary" onclick="aplicarFiltros()"><i class="fas fa-search"></i> Filtrar</button>
             <button class="btn btn-outline" onclick="limparFiltros()"><i class="fas fa-undo-alt"></i> Limpar</button>
         </div>
-        <button class="btn btn-add" id="btnNovoRegistro"><i class="fas fa-plus"></i> Novo registro</button>
+        <button class="btn btn-add" id="btnNovoRegistro"><i class="fas fa-plus"></i> Novo registro (múltiplas cotas)</button>
     </div>
 
     <div class="table-wrapper">
         <table id="dataTable">
             <thead>
-                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Dias</th><th>Email</th><th style="width:70px">Ações</th></tr>
+                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Dias</th><th>Observação</th><th style="width:70px">Ações</th></tr>
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
-        <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para começar.</div>
+        <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
     </div>
-    <footer>© 2026 CityBens — Dados salvos localmente. Edição completa.</footer>
+    <footer>© 2026 CityBens — Dados salvos localmente. Suporte a múltiplas cotas por cadastro.</footer>
 </div>
 
-<!-- MODAL EDITAR / NOVO (campo "Dias (offset)" removido) -->
+<!-- MODAL DE CADASTRO/EDIÇÃO COM ITENS DINÂMICOS -->
 <div id="modalEditar" class="modal">
     <div class="modal-content">
-        <h3 id="modalTitle">Novo registro</h3>
+        <h3 id="modalTitle">Novo registro (múltiplas cotas)</h3>
+        
+        <!-- Dados gerais (compartilhados entre todos os itens) -->
         <div class="form-grid">
-            <div class="form-field"><label>Responsável</label><input type="text" id="editResponsavel"></div>
-            <div class="form-field"><label>Empresa</label><input type="text" id="editEmpresa"></div>
-            <div class="form-field"><label>Administradora</label><input type="text" id="editAdministradora"></div>
-            <div class="form-field"><label>Grupo</label><input type="text" id="editGrupo"></div>
-            <div class="form-field"><label>Cota</label><input type="text" id="editCota"></div>
-            <div class="form-field"><label>Dia vencimento</label><input type="number" id="editDiaVenc" value="1" min="1" max="31"></div>
-            <div class="form-field"><label>Valor (R$)</label><input type="number" step="0.01" id="editValor" value="0"></div>
-            <div class="form-field"><label>Status</label><select id="editStatus"><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
-            <div class="form-field"><label>Canal</label><input type="text" id="editCanal"></div>
-            <!-- Campo Alerta mantido, mas será sobrescrito pelo cálculo automático no salvamento -->
-            <div class="form-field"><label>Alerta (automático)</label><select id="editAlerta"><option>🚨 ATRASADO</option><option>🔥 VENCE HOJE</option><option>⚠️ 3 DIAS</option><option>✅ OK</option></select></div>
-            <div class="form-field full"><label>Email</label><input type="email" id="editEmail"></div>
+            <div class="form-field"><label>Responsável *</label><input type="text" id="editResponsavel" required></div>
+            <div class="form-field"><label>Empresa *</label><input type="text" id="editEmpresa" required></div>
+            <div class="form-field full"><label>Administradora</label><input type="text" id="editAdministradora"></div>
         </div>
+
+        <!-- Seção de itens (grupo, cota, data, valor, status, canal, observação) -->
+        <div class="itens-section">
+            <div class="itens-header">
+                <h4><i class="fas fa-list"></i> Itens (grupo/cota)</h4>
+                <button type="button" class="btn btn-outline" id="btnAdicionarItem" style="padding: 4px 12px;"><i class="fas fa-plus"></i> Adicionar cota</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="itens-table" id="itensTable">
+                    <thead>
+                        <tr><th>Grupo</th><th>Cota</th><th>Data vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Observação</th><th style="width:40px"></th></tr>
+                    </thead>
+                    <tbody id="itensBody">
+                        <!-- Linhas dinâmicas serão inseridas aqui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="modal-buttons">
             <button class="btn btn-outline" id="btnCancelarModal">Cancelar</button>
-            <button class="btn btn-primary" id="btnSalvarModal">Salvar</button>
+            <button class="btn btn-primary" id="btnSalvarModal">Salvar todos os itens</button>
         </div>
     </div>
 </div>
 
 <script>
+    // ==================== ESTRUTURA DE DADOS ====================
+    // Cada registro agora tem: id, responsavel, empresa, administradora, 
+    // grupo, cota, data_venc (YYYY-MM-DD), valor, status, canal, observacao
+    // alerta e dias_vencimento são calculados automaticamente.
     let dados = [];
-    let currentEditId = null;
+    let currentEditId = null;        // Se for edição de um registro existente (único item)
+    let isEditingMultiple = false;    // Flag para saber se estamos editando um único item ou criando múltiplos
+    let editingOriginalId = null;     // ID do registro que está sendo editado (quando edição individual)
 
     // Salvar no localStorage
     function salvarLocal() {
         localStorage.setItem("citybens_dados", JSON.stringify(dados));
     }
 
-    // Calcular dias restantes baseado no dia do vencimento (considera mês atual ou próximo)
-    function calcularDiasVencimento(diaVenc) {
-        if (!diaVenc) return 999;
+    // Calcular alerta e dias com base na data de vencimento (formato YYYY-MM-DD)
+    function calcularAlertaEDias(dataVencStr) {
+        if (!dataVencStr) return { alerta: "✅ OK", dias: 999 };
         const hoje = new Date();
-        const ano = hoje.getFullYear();
-        let mes = hoje.getMonth();
-        let dataVenc = new Date(ano, mes, diaVenc);
-        if (dataVenc < hoje) {
-            dataVenc = new Date(ano, mes + 1, diaVenc);
-        }
-        const diff = Math.ceil((dataVenc - hoje) / (1000 * 60 * 60 * 24));
-        return diff;
+        hoje.setHours(0, 0, 0, 0);
+        const venc = new Date(dataVencStr);
+        venc.setHours(0, 0, 0, 0);
+        const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+        let alerta = "";
+        if (diff < 0) alerta = "🚨 ATRASADO";
+        else if (diff === 0) alerta = "🔥 VENCE HOJE";
+        else if (diff <= 3) alerta = "⚠️ 3 DIAS";
+        else alerta = "✅ OK";
+        return { alerta, dias: diff };
     }
 
-    // Atualizar alerta e dias com base no dia de vencimento (data atual)
-    function atualizarAlertaEDias(registro) {
-        const diff = calcularDiasVencimento(registro.dia_vencimento);
-        registro.dias_vencimento = diff;
-        if (diff < 0) registro.alerta = "🚨 ATRASADO";
-        else if (diff === 0) registro.alerta = "🔥 VENCE HOJE";
-        else if (diff <= 3) registro.alerta = "⚠️ 3 DIAS";
-        else registro.alerta = "✅ OK";
+    // Atualizar alerta e dias de um registro individual
+    function atualizarRegistro(registro) {
+        const { alerta, dias } = calcularAlertaEDias(registro.data_venc);
+        registro.alerta = alerta;
+        registro.dias_vencimento = dias;
         return registro;
     }
 
-    // Recalcula alertas de TODOS os registros (útil ao carregar a página ou após mudanças de data)
+    // Recalcular todos os alertas (útil ao carregar ou após mudanças de data)
     function recalcularTodosAlertas() {
-        dados.forEach(r => atualizarAlertaEDias(r));
+        dados.forEach(r => atualizarRegistro(r));
         salvarLocal();
     }
 
+    // ==================== MIGRAÇÃO DE DADOS ANTIGOS ====================
+    // Converte registros antigos (com dia_vencimento) para novo formato (data_venc)
+    function migrarDadosAntigos() {
+        let migrou = false;
+        dados = dados.map(reg => {
+            if (!reg.data_venc && reg.dia_vencimento) {
+                // Cria uma data aproximada: dia do mês atual, ou próximo mês se já passou
+                const hoje = new Date();
+                let ano = hoje.getFullYear();
+                let mes = hoje.getMonth();
+                let dia = reg.dia_vencimento;
+                let dataCandidata = new Date(ano, mes, dia);
+                if (dataCandidata < hoje) {
+                    dataCandidata = new Date(ano, mes + 1, dia);
+                }
+                // Formato YYYY-MM-DD
+                const anoStr = dataCandidata.getFullYear();
+                const mesStr = String(dataCandidata.getMonth() + 1).padStart(2, '0');
+                const diaStr = String(dataCandidata.getDate()).padStart(2, '0');
+                reg.data_venc = `${anoStr}-${mesStr}-${diaStr}`;
+                migrou = true;
+            }
+            // Remove campos antigos que não serão mais usados
+            delete reg.dia_vencimento;
+            delete reg.email;
+            // Garante campo observacao
+            if (!reg.observacao) reg.observacao = "";
+            return reg;
+        });
+        if (migrou) salvarLocal();
+    }
+
+    // ==================== FUNÇÕES DA TABELA PRINCIPAL ====================
     function getClasseAlerta(alerta) {
         if (alerta.includes("ATRASADO")) return "alerta-atrasado";
         if (alerta.includes("VENCE HOJE")) return "alerta-vence";
         if (alerta.includes("3 DIAS")) return "alerta-3dias";
         return "alerta-ok";
+    }
+
+    function formatarData(dataStr) {
+        if (!dataStr) return "";
+        const partes = dataStr.split("-");
+        if (partes.length !== 3) return dataStr;
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
     function renderizarTabela(filtrados) {
@@ -466,15 +584,15 @@
                 <td>${escapeHtml(item.administradora)}</td>
                 <td>${escapeHtml(item.grupo)}</td>
                 <td>${escapeHtml(item.cota)}</td>
-                <td>${item.dia_vencimento}/mês</td>
+                <td>${formatarData(item.data_venc)}</td>
                 <td class="valor-cell">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
                 <td><span class="status-badge status-${item.status.toLowerCase()}">${item.status}</span></td>
                 <td>${escapeHtml(item.canal)}</td>
                 <td><span class="alerta-cell ${alertaClass}">${item.alerta}</span></td>
                 <td><strong>${item.dias_vencimento}</strong></td>
-                <td><a href="mailto:${escapeHtml(item.email)}" aria-label="Enviar e-mail para ${escapeHtml(item.email)}" style="color:#94a3f8;">✉️</a></td>
+                <td class="obs-cell" title="${escapeHtml(item.observacao)}">${escapeHtml(item.observacao)}</td>
                 <td class="action-icons">
-                    <i class="fas fa-edit" onclick="abrirEdicao(${item.id})"></i>
+                    <i class="fas fa-edit" onclick="editarRegistro(${item.id})"></i>
                     <i class="fas fa-trash-alt" onclick="excluirRegistro(${item.id})"></i>
                 </td>
             </tr>`;
@@ -489,9 +607,7 @@
     }
 
     function aplicarFiltros() {
-        // Antes de filtrar, garantir que os alertas estejam atualizados (caso o dia tenha mudado)
-        recalcularTodosAlertas();
-
+        recalcularTodosAlertas(); // Atualiza alertas antes de filtrar
         const resp = document.getElementById('filterResponsavel').value;
         const empresa = document.getElementById('filterEmpresa').value;
         const status = document.getElementById('filterStatus').value;
@@ -503,7 +619,7 @@
             if (empresa && item.empresa !== empresa) return false;
             if (status && item.status !== status) return false;
             if (alerta && item.alerta !== alerta) return false;
-            if (busca && !item.grupo.toLowerCase().includes(busca) && !item.cota.toLowerCase().includes(busca) && !item.email.toLowerCase().includes(busca)) return false;
+            if (busca && !item.grupo.toLowerCase().includes(busca) && !item.cota.toLowerCase().includes(busca) && !item.observacao.toLowerCase().includes(busca)) return false;
             return true;
         });
         renderizarTabela(filtrados);
@@ -518,54 +634,219 @@
         selectEmp.innerHTML = '<option value="">Todos</option>' + empresas.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join('');
     }
 
-    function abrirEdicao(id) {
-        const registro = dados.find(r => r.id === id);
-        if (!registro) return;
-        currentEditId = id;
-        document.getElementById('modalTitle').innerText = '✏️ Editar registro';
-        document.getElementById('editResponsavel').value = registro.responsavel;
-        document.getElementById('editEmpresa').value = registro.empresa;
-        document.getElementById('editAdministradora').value = registro.administradora;
-        document.getElementById('editGrupo').value = registro.grupo;
-        document.getElementById('editCota').value = registro.cota;
-        document.getElementById('editDiaVenc').value = registro.dia_vencimento;
-        document.getElementById('editValor').value = registro.valor;
-        document.getElementById('editStatus').value = registro.status;
-        document.getElementById('editCanal').value = registro.canal;
-        document.getElementById('editAlerta').value = registro.alerta;
-        document.getElementById('editEmail').value = registro.email;
+    function limparFiltros() {
+        document.getElementById('filterResponsavel').value = '';
+        document.getElementById('filterEmpresa').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterAlerta').value = '';
+        document.getElementById('searchBox').value = '';
+        aplicarFiltros();
+    }
+
+    // ==================== GERENCIAMENTO DOS ITENS DINÂMICOS NO MODAL ====================
+    let itensArray = []; // Armazena os itens temporariamente enquanto o modal está aberto
+
+    function renderizarItensTabela() {
+        const tbody = document.getElementById('itensBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        itensArray.forEach((item, idx) => {
+            const row = tbody.insertRow();
+            // Grupo
+            const cellGrupo = row.insertCell(0);
+            const inputGrupo = document.createElement('input');
+            inputGrupo.type = 'text';
+            inputGrupo.value = item.grupo || '';
+            inputGrupo.placeholder = 'Ex: Grupo A';
+            inputGrupo.addEventListener('change', (e) => itensArray[idx].grupo = e.target.value);
+            cellGrupo.appendChild(inputGrupo);
+            // Cota
+            const cellCota = row.insertCell(1);
+            const inputCota = document.createElement('input');
+            inputCota.type = 'text';
+            inputCota.value = item.cota || '';
+            inputCota.placeholder = 'Nº';
+            inputCota.addEventListener('change', (e) => itensArray[idx].cota = e.target.value);
+            cellCota.appendChild(inputCota);
+            // Data vencimento
+            const cellData = row.insertCell(2);
+            const inputData = document.createElement('input');
+            inputData.type = 'date';
+            inputData.value = item.data_venc || '';
+            inputData.addEventListener('change', (e) => itensArray[idx].data_venc = e.target.value);
+            cellData.appendChild(inputData);
+            // Valor
+            const cellValor = row.insertCell(3);
+            const inputValor = document.createElement('input');
+            inputValor.type = 'number';
+            inputValor.step = '0.01';
+            inputValor.value = item.valor || 0;
+            inputValor.addEventListener('change', (e) => itensArray[idx].valor = parseFloat(e.target.value) || 0);
+            cellValor.appendChild(inputValor);
+            // Status
+            const cellStatus = row.insertCell(4);
+            const selectStatus = document.createElement('select');
+            selectStatus.innerHTML = `<option ${item.status === 'Ativo' ? 'selected' : ''}>Ativo</option>
+                                      <option ${item.status === 'Contemplado' ? 'selected' : ''}>Contemplado</option>
+                                      <option ${item.status === 'Pago' ? 'selected' : ''}>Pago</option>`;
+            selectStatus.addEventListener('change', (e) => itensArray[idx].status = e.target.value);
+            cellStatus.appendChild(selectStatus);
+            // Canal
+            const cellCanal = row.insertCell(5);
+            const inputCanal = document.createElement('input');
+            inputCanal.type = 'text';
+            inputCanal.value = item.canal || '';
+            inputCanal.placeholder = 'Canal';
+            inputCanal.addEventListener('change', (e) => itensArray[idx].canal = e.target.value);
+            cellCanal.appendChild(inputCanal);
+            // Observação (por item)
+            const cellObs = row.insertCell(6);
+            const inputObs = document.createElement('input');
+            inputObs.type = 'text';
+            inputObs.value = item.observacao || '';
+            inputObs.placeholder = 'Obs. do item';
+            inputObs.addEventListener('change', (e) => itensArray[idx].observacao = e.target.value);
+            cellObs.appendChild(inputObs);
+            // Ação remover
+            const cellAction = row.insertCell(7);
+            const btnRemove = document.createElement('button');
+            btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
+            btnRemove.className = 'btn-remove-item';
+            btnRemove.onclick = () => {
+                itensArray.splice(idx, 1);
+                renderizarItensTabela();
+            };
+            cellAction.appendChild(btnRemove);
+        });
+        // Se não houver itens, adiciona um padrão
+        if (itensArray.length === 0) {
+            adicionarItemVazio();
+        }
+    }
+
+    function adicionarItemVazio() {
+        itensArray.push({
+            grupo: '',
+            cota: '',
+            data_venc: '',
+            valor: 0,
+            status: 'Ativo',
+            canal: '',
+            observacao: ''
+        });
+        renderizarItensTabela();
+    }
+
+    // ==================== ABRIR MODAL PARA NOVO REGISTRO (MÚLTIPLOS ITENS) ====================
+    function novoRegistro() {
+        currentEditId = null;
+        editingOriginalId = null;
+        isEditingMultiple = false;
+        document.getElementById('modalTitle').innerText = '➕ Novo registro (múltiplas cotas)';
+        // Limpar campos gerais
+        document.getElementById('editResponsavel').value = '';
+        document.getElementById('editEmpresa').value = '';
+        document.getElementById('editAdministradora').value = '';
+        // Inicializar itensArray com um item vazio
+        itensArray = [];
+        adicionarItemVazio(); // adiciona um item padrão
+        renderizarItensTabela();
         document.getElementById('modalEditar').style.display = 'flex';
     }
 
-    function salvarEdicao() {
-        const diaVenc = parseInt(document.getElementById('editDiaVenc').value) || 1;
-        const valor = parseFloat(document.getElementById('editValor').value) || 0;
-        const novoRegistro = {
-            id: currentEditId || Date.now(),
-            responsavel: document.getElementById('editResponsavel').value,
-            empresa: document.getElementById('editEmpresa').value,
-            administradora: document.getElementById('editAdministradora').value,
-            grupo: document.getElementById('editGrupo').value,
-            cota: document.getElementById('editCota').value,
-            dia_vencimento: diaVenc,
-            valor: valor,
-            status: document.getElementById('editStatus').value,
-            canal: document.getElementById('editCanal').value,
-            alerta: document.getElementById('editAlerta').value,  // será sobrescrito
-            dias_vencimento: 0,  // será recalculado
-            email: document.getElementById('editEmail').value,
-        };
-        // Recalcula dias e alerta com base na data atual
-        atualizarAlertaEDias(novoRegistro);
+    // ==================== EDITAR REGISTRO EXISTENTE (ÚNICO ITEM) ====================
+    function editarRegistro(id) {
+        const registro = dados.find(r => r.id === id);
+        if (!registro) return;
+        currentEditId = id;
+        editingOriginalId = id;
+        isEditingMultiple = false;
+        document.getElementById('modalTitle').innerText = '✏️ Editar registro';
+        // Preencher campos gerais
+        document.getElementById('editResponsavel').value = registro.responsavel;
+        document.getElementById('editEmpresa').value = registro.empresa;
+        document.getElementById('editAdministradora').value = registro.administradora || '';
+        // Criar um único item com os dados do registro
+        itensArray = [{
+            grupo: registro.grupo,
+            cota: registro.cota,
+            data_venc: registro.data_venc,
+            valor: registro.valor,
+            status: registro.status,
+            canal: registro.canal,
+            observacao: registro.observacao || ''
+        }];
+        renderizarItensTabela();
+        document.getElementById('modalEditar').style.display = 'flex';
+    }
 
-        if (currentEditId) {
-            const index = dados.findIndex(r => r.id === currentEditId);
-            if (index !== -1) dados[index] = novoRegistro;
-        } else {
-            dados.push(novoRegistro);
+    // ==================== SALVAR (CRIAR VÁRIOS REGISTROS OU ATUALIZAR UM) ====================
+    function salvarEdicao() {
+        const responsavel = document.getElementById('editResponsavel').value.trim();
+        const empresa = document.getElementById('editEmpresa').value.trim();
+        const administradora = document.getElementById('editAdministradora').value.trim();
+
+        if (!responsavel || !empresa) {
+            alert("Preencha pelo menos Responsável e Empresa.");
+            return;
         }
+
+        // Validar itens
+        const itensValidos = itensArray.filter(item => item.grupo && item.cota && item.data_venc);
+        if (itensValidos.length === 0) {
+            alert("Adicione pelo menos um item com Grupo, Cota e Data de vencimento preenchidos.");
+            return;
+        }
+
+        if (currentEditId && !isEditingMultiple) {
+            // Modo edição de um registro existente (substitui o registro)
+            const registroAntigo = dados.find(r => r.id === currentEditId);
+            if (registroAntigo) {
+                // Remove o antigo e adiciona o(s) novo(s) item(ns)? O usuário pode ter adicionado mais itens na edição.
+                // Vamos remover o antigo e adicionar todos os itens do modal como novos registros.
+                dados = dados.filter(r => r.id !== currentEditId);
+                for (let item of itensValidos) {
+                    const novoId = Date.now() + Math.random();
+                    const novoReg = {
+                        id: novoId,
+                        responsavel: responsavel,
+                        empresa: empresa,
+                        administradora: administradora,
+                        grupo: item.grupo,
+                        cota: item.cota,
+                        data_venc: item.data_venc,
+                        valor: item.valor,
+                        status: item.status,
+                        canal: item.canal,
+                        observacao: item.observacao || ''
+                    };
+                    atualizarRegistro(novoReg);
+                    dados.push(novoReg);
+                }
+            }
+        } else {
+            // Modo novo registro: cria um registro para cada item
+            for (let item of itensValidos) {
+                const novoId = Date.now() + Math.random();
+                const novoReg = {
+                    id: novoId,
+                    responsavel: responsavel,
+                    empresa: empresa,
+                    administradora: administradora,
+                    grupo: item.grupo,
+                    cota: item.cota,
+                    data_venc: item.data_venc,
+                    valor: item.valor,
+                    status: item.status,
+                    canal: item.canal,
+                    observacao: item.observacao || ''
+                };
+                atualizarRegistro(novoReg);
+                dados.push(novoReg);
+            }
+        }
+
         salvarLocal();
-        // Como um registro foi alterado, recalcula todos (por segurança)
         recalcularTodosAlertas();
         atualizarFiltrosSelect();
         aplicarFiltros();
@@ -582,34 +863,9 @@
         }
     }
 
-    function limparFiltros() {
-        document.getElementById('filterResponsavel').value = '';
-        document.getElementById('filterEmpresa').value = '';
-        document.getElementById('filterStatus').value = '';
-        document.getElementById('filterAlerta').value = '';
-        document.getElementById('searchBox').value = '';
-        aplicarFiltros();
-    }
-
-    function novoRegistro() {
-        currentEditId = null;
-        document.getElementById('modalTitle').innerText = '➕ Novo registro';
-        document.getElementById('editResponsavel').value = '';
-        document.getElementById('editEmpresa').value = '';
-        document.getElementById('editAdministradora').value = '';
-        document.getElementById('editGrupo').value = '';
-        document.getElementById('editCota').value = '';
-        document.getElementById('editDiaVenc').value = '1';
-        document.getElementById('editValor').value = '0';
-        document.getElementById('editStatus').value = 'Ativo';
-        document.getElementById('editCanal').value = '';
-        document.getElementById('editAlerta').value = '✅ OK';
-        document.getElementById('editEmail').value = '';
-        document.getElementById('modalEditar').style.display = 'flex';
-    }
-
     function fecharModal() {
         document.getElementById('modalEditar').style.display = 'none';
+        itensArray = [];
     }
 
     function escapeHtml(str) { 
@@ -622,15 +878,15 @@
         });
     }
 
-    // Carregar dados do localStorage ou iniciar vazio, depois atualizar tudo
+    // ==================== INICIALIZAÇÃO ====================
     function carregarDados() {
         const saved = localStorage.getItem("citybens_dados");
         if (saved) {
             dados = JSON.parse(saved);
+            migrarDadosAntigos();  // Converte registros antigos se necessário
         } else {
             dados = [];
         }
-        // Forçar recálculo de alertas com base na data atual
         recalcularTodosAlertas();
         atualizarFiltrosSelect();
         aplicarFiltros();
@@ -641,6 +897,9 @@
         document.getElementById('btnNovoRegistro').addEventListener('click', novoRegistro);
         document.getElementById('btnCancelarModal').addEventListener('click', fecharModal);
         document.getElementById('btnSalvarModal').addEventListener('click', salvarEdicao);
+        document.getElementById('btnAdicionarItem').addEventListener('click', () => {
+            adicionarItemVazio();
+        });
         window.addEventListener('click', (e) => { if(e.target === document.getElementById('modalEditar')) fecharModal(); });
         document.getElementById('searchBox').addEventListener('keypress', (e) => { if(e.key === 'Enter') aplicarFiltros(); });
     });
