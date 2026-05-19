@@ -192,7 +192,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1100px;
+            min-width: 1200px;
         }
         th {
             text-align: left;
@@ -223,17 +223,6 @@
         .status-ativo { background: #1e3a8a20; color: #60a5fa; border: 1px solid #2563eb40; }
         .status-contemplado { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
         .status-pago { background: #10b98120; color: #34d399; border: 1px solid #10b98140; }
-        .alerta-cell {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 12px;
-            display: inline-block;
-        }
-        .alerta-atrasado { background: #7f1a1a; color: #fca5a5; }
-        .alerta-vence { background: #b45309; color: #fed7aa; }
-        .alerta-3dias { background: #854d0e; color: #fde047; }
-        .alerta-ok { background: #14532d; color: #86efac; }
         .action-icons i {
             font-size: 18px;
             margin: 0 6px;
@@ -253,18 +242,18 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* Bolinha colorida do prazo */
-        .prazo-bolinha {
+        /* Bolinha colorida do alerta (data de retorno) */
+        .alerta-bolinha {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            margin-right: 6px;
+            margin-left: 8px;
             vertical-align: middle;
         }
-        .prazo-verde { background-color: #10b981; box-shadow: 0 0 4px #10b981; }
-        .prazo-amarelo { background-color: #facc15; box-shadow: 0 0 4px #facc15; }
-        .prazo-vermelho { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
+        .alerta-verde { background-color: #10b981; box-shadow: 0 0 4px #10b981; }
+        .alerta-amarelo { background-color: #facc15; box-shadow: 0 0 4px #facc15; }
+        .alerta-vermelho { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
 
         /* Modal */
         .modal {
@@ -414,7 +403,7 @@
             <div class="filter-group"><label>Responsável</label><select id="filterResponsavel"><option value="">Todos</option></select></div>
             <div class="filter-group"><label>Empresa</label><select id="filterEmpresa"><option value="">Todos</option></select></div>
             <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
-            <div class="filter-group"><label>Alerta</label><select id="filterAlerta"><option value="">Todos</option><option>🚨 ATRASADO</option><option>🔥 VENCE HOJE</option><option>⚠️ 3 DIAS</option><option>✅ OK</option></select></div>
+            <div class="filter-group"><label>Situação Alerta</label><select id="filterAlerta"><option value="">Todos</option><option>🔴 Atrasado</option><option>🟡 Hoje</option><option>🟢 Futuro</option></select></div>
             <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, obs..."></div>
             <button class="btn btn-primary" onclick="aplicarFiltros()"><i class="fas fa-search"></i> Filtrar</button>
             <button class="btn btn-outline" onclick="limparFiltros()"><i class="fas fa-undo-alt"></i> Limpar</button>
@@ -425,13 +414,13 @@
     <div class="table-wrapper">
         <table id="dataTable">
             <thead>
-                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Prazo</th><th>Observação</th><th style="width:70px">Ações</th></tr>
+                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Data Alerta</th><th>Observação</th><th style="width:70px">Ações</th></tr>
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
         <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
     </div>
-    <footer>© 2026 CityBens — Alerta editável e indicador de prazo por bolinha colorida.</footer>
+    <footer>© 2026 CityBens — Alerta com data de retorno + bolinha colorida.</footer>
 </div>
 
 <!-- MODAL DE CADASTRO/EDIÇÃO COM ITENS DINÂMICOS -->
@@ -453,7 +442,7 @@
             <div style="overflow-x: auto;">
                 <table class="itens-table" id="itensTable">
                     <thead>
-                        <tr><th>Grupo</th><th>Cota</th><th>Data vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Observação</th><th style="width:40px"></th></tr>
+                        <tr><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Data Alerta *</th><th>Observação</th><th style="width:40px"></th></tr>
                     </thead>
                     <tbody id="itensBody">
                         <!-- Linhas dinâmicas -->
@@ -479,87 +468,54 @@
         localStorage.setItem("citybens_dados", JSON.stringify(dados));
     }
 
-    // Retorna a cor da bolinha baseada na data de vencimento
-    function getClassePrazo(dataVencStr) {
-        if (!dataVencStr) return "prazo-vermelho"; // sem data, considerado atrasado
+    // Retorna a cor da bolinha baseada na data de alerta
+    function getClasseAlertaBol(dataAlertaStr) {
+        if (!dataAlertaStr) return "alerta-vermelho"; // sem data, considerado atrasado
         const hoje = new Date();
         hoje.setHours(0,0,0,0);
-        const venc = new Date(dataVencStr);
-        venc.setHours(0,0,0,0);
-        if (venc < hoje) return "prazo-vermelho";
-        if (venc.getTime() === hoje.getTime()) return "prazo-amarelo";
-        return "prazo-verde";
+        const alerta = new Date(dataAlertaStr);
+        alerta.setHours(0,0,0,0);
+        if (alerta < hoje) return "alerta-vermelho";
+        if (alerta.getTime() === hoje.getTime()) return "alerta-amarelo";
+        return "alerta-verde";
     }
 
-    // Calcula se é atrasado, hoje ou futuro (apenas para ícone)
-    function calcularStatusPrazo(dataVencStr) {
-        if (!dataVencStr) return "atrasado";
+    // Retorna o texto da situação para filtro
+    function getSituacaoAlerta(dataAlertaStr) {
+        if (!dataAlertaStr) return "atrasado";
         const hoje = new Date();
         hoje.setHours(0,0,0,0);
-        const venc = new Date(dataVencStr);
-        venc.setHours(0,0,0,0);
-        if (venc < hoje) return "atrasado";
-        if (venc.getTime() === hoje.getTime()) return "hoje";
+        const alerta = new Date(dataAlertaStr);
+        alerta.setHours(0,0,0,0);
+        if (alerta < hoje) return "atrasado";
+        if (alerta.getTime() === hoje.getTime()) return "hoje";
         return "futuro";
     }
 
-    // Sugere alerta baseado na data (usado apenas no novo item)
-    function sugerirAlertaPorData(dataVencStr) {
-        if (!dataVencStr) return "✅ OK";
-        const hoje = new Date();
-        hoje.setHours(0,0,0,0);
-        const venc = new Date(dataVencStr);
-        venc.setHours(0,0,0,0);
-        const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
-        if (diff < 0) return "🚨 ATRASADO";
-        if (diff === 0) return "🔥 VENCE HOJE";
-        if (diff <= 3) return "⚠️ 3 DIAS";
-        return "✅ OK";
+    // Formatar data para exibição (dd/mm/aaaa)
+    function formatarData(dataStr) {
+        if (!dataStr) return "";
+        const partes = dataStr.split("-");
+        if (partes.length !== 3) return dataStr;
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
-    // Migração de dados antigos (garantir campos)
+    // Migração de dados antigos (caso existam)
     function migrarDadosAntigos() {
         let migrou = false;
         dados = dados.map(reg => {
-            if (!reg.data_venc && reg.dia_vencimento) {
-                const hoje = new Date();
-                let ano = hoje.getFullYear();
-                let mes = hoje.getMonth();
-                let dia = reg.dia_vencimento;
-                let dataCandidata = new Date(ano, mes, dia);
-                if (dataCandidata < hoje) dataCandidata = new Date(ano, mes + 1, dia);
-                const anoStr = dataCandidata.getFullYear();
-                const mesStr = String(dataCandidata.getMonth() + 1).padStart(2, '0');
-                const diaStr = String(dataCandidata.getDate()).padStart(2, '0');
-                reg.data_venc = `${anoStr}-${mesStr}-${diaStr}`;
-                migrou = true;
-            }
-            if (!reg.alerta) {
-                reg.alerta = sugerirAlertaPorData(reg.data_venc);
+            // Se não tem data_alerta, mas tem alerta textual, tenta converter? Melhor deixar vazio
+            if (!reg.data_alerta) {
+                reg.data_alerta = "";
                 migrou = true;
             }
             if (!reg.observacao) reg.observacao = "";
-            delete reg.email;
-            delete reg.dia_vencimento;
             return reg;
         });
         if (migrou) salvarLocal();
     }
 
     // ==================== RENDERIZAÇÃO DA TABELA PRINCIPAL ====================
-    function getClasseAlerta(alerta) {
-        if (alerta.includes("ATRASADO")) return "alerta-atrasado";
-        if (alerta.includes("VENCE HOJE")) return "alerta-vence";
-        if (alerta.includes("3 DIAS")) return "alerta-3dias";
-        return "alerta-ok";
-    }
-
-    function formatarData(dataStr) {
-        if (!dataStr) return "";
-        const partes = dataStr.split("-");
-        return `${partes[2]}/${partes[1]}/${partes[0]}`;
-    }
-
     function renderizarTabela(filtrados) {
         const tbody = document.getElementById('tableBody');
         const emptyDiv = document.getElementById('emptyState');
@@ -573,13 +529,14 @@
         }
         emptyDiv.style.display = 'none';
         tbody.innerHTML = filtrados.map(item => {
-            const alertaClass = getClasseAlerta(item.alerta);
-            const prazoClass = getClassePrazo(item.data_venc);
-            const prazoStatus = calcularStatusPrazo(item.data_venc);
-            let tituloPrazo = "";
-            if (prazoStatus === "atrasado") tituloPrazo = "Atrasado";
-            else if (prazoStatus === "hoje") tituloPrazo = "Vence hoje";
-            else tituloPrazo = "No prazo";
+            const classeBol = getClasseAlertaBol(item.data_alerta);
+            const situacao = getSituacaoAlerta(item.data_alerta);
+            let tituloBol = "";
+            if (situacao === "atrasado") tituloBol = "Atrasado";
+            else if (situacao === "hoje") tituloBol = "Alerta hoje";
+            else tituloBol = "Futuro";
+            // Status badge
+            const statusClass = `status-${item.status.toLowerCase()}`;
             return `<tr>
                 <td>${escapeHtml(item.responsavel)}</td>
                 <td>${escapeHtml(item.empresa)}</td>
@@ -588,10 +545,9 @@
                 <td>${escapeHtml(item.cota)}</td>
                 <td>${formatarData(item.data_venc)}</td>
                 <td class="valor-cell">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
-                <td><span class="status-badge status-${item.status.toLowerCase()}">${item.status}</span></td>
+                <td><span class="status-badge ${statusClass}">${item.status}</span></td>
                 <td>${escapeHtml(item.canal)}</td>
-                <td><span class="alerta-cell ${alertaClass}">${item.alerta}</span></td>
-                <td><span class="prazo-bolinha ${prazoClass}" title="${tituloPrazo}"></span></td>
+                <td>${formatarData(item.data_alerta)} <span class="alerta-bolinha ${classeBol}" title="${tituloBol}"></span></td>
                 <td class="obs-cell" title="${escapeHtml(item.observacao)}">${escapeHtml(item.observacao)}</td>
                 <td class="action-icons">
                     <i class="fas fa-edit" onclick="editarRegistro(${item.id})"></i>
@@ -601,7 +557,10 @@
         }).join('');
 
         const total = filtrados.length;
-        const alertasCriticos = filtrados.filter(f => f.alerta.includes("ATRASADO") || f.alerta.includes("VENCE HOJE") || f.alerta.includes("3 DIAS")).length;
+        const alertasCriticos = filtrados.filter(f => {
+            const sit = getSituacaoAlerta(f.data_alerta);
+            return sit === "atrasado" || sit === "hoje";
+        }).length;
         const somaValor = filtrados.reduce((acc, f) => acc + f.valor, 0);
         document.getElementById('totalRegistros').innerText = total;
         document.getElementById('totalAlertas').innerText = alertasCriticos;
@@ -612,14 +571,19 @@
         const resp = document.getElementById('filterResponsavel').value;
         const empresa = document.getElementById('filterEmpresa').value;
         const status = document.getElementById('filterStatus').value;
-        const alerta = document.getElementById('filterAlerta').value;
+        const filterSituacao = document.getElementById('filterAlerta').value; // "atrasado", "hoje", "futuro"
         const busca = document.getElementById('searchBox').value.toLowerCase();
 
         let filtrados = dados.filter(item => {
             if (resp && item.responsavel !== resp) return false;
             if (empresa && item.empresa !== empresa) return false;
             if (status && item.status !== status) return false;
-            if (alerta && item.alerta !== alerta) return false;
+            if (filterSituacao) {
+                const sit = getSituacaoAlerta(item.data_alerta);
+                if (filterSituacao === "🔴 Atrasado" && sit !== "atrasado") return false;
+                if (filterSituacao === "🟡 Hoje" && sit !== "hoje") return false;
+                if (filterSituacao === "🟢 Futuro" && sit !== "futuro") return false;
+            }
             if (busca && !item.grupo.toLowerCase().includes(busca) && !item.cota.toLowerCase().includes(busca) && !item.observacao.toLowerCase().includes(busca)) return false;
             return true;
         });
@@ -667,21 +631,13 @@
             inputCota.placeholder = 'Nº';
             inputCota.addEventListener('change', (e) => itensArray[idx].cota = e.target.value);
             cellCota.appendChild(inputCota);
-            // Data vencimento (completa)
-            const cellData = row.insertCell(2);
-            const inputData = document.createElement('input');
-            inputData.type = 'date';
-            inputData.value = item.data_venc || '';
-            inputData.addEventListener('change', (e) => {
-                itensArray[idx].data_venc = e.target.value;
-                // Se o alerta não foi definido manualmente, sugere automático
-                if (!itensArray[idx].alerta_definido_manualmente) {
-                    itensArray[idx].alerta = sugerirAlertaPorData(e.target.value);
-                    const selectAlerta = row.cells[6].querySelector('select');
-                    if (selectAlerta) selectAlerta.value = itensArray[idx].alerta;
-                }
-            });
-            cellData.appendChild(inputData);
+            // Vencimento
+            const cellVenc = row.insertCell(2);
+            const inputVenc = document.createElement('input');
+            inputVenc.type = 'date';
+            inputVenc.value = item.data_venc || '';
+            inputVenc.addEventListener('change', (e) => itensArray[idx].data_venc = e.target.value);
+            cellVenc.appendChild(inputVenc);
             // Valor
             const cellValor = row.insertCell(3);
             const inputValor = document.createElement('input');
@@ -706,24 +662,20 @@
             inputCanal.placeholder = 'Canal';
             inputCanal.addEventListener('change', (e) => itensArray[idx].canal = e.target.value);
             cellCanal.appendChild(inputCanal);
-            // Alerta (editável)
+            // Data Alerta (data de retorno) - OBRIGATÓRIA
             const cellAlerta = row.insertCell(6);
-            const selectAlerta = document.createElement('select');
-            selectAlerta.innerHTML = `<option ${item.alerta === '🚨 ATRASADO' ? 'selected' : ''}>🚨 ATRASADO</option>
-                                      <option ${item.alerta === '🔥 VENCE HOJE' ? 'selected' : ''}>🔥 VENCE HOJE</option>
-                                      <option ${item.alerta === '⚠️ 3 DIAS' ? 'selected' : ''}>⚠️ 3 DIAS</option>
-                                      <option ${item.alerta === '✅ OK' ? 'selected' : ''}>✅ OK</option>`;
-            selectAlerta.addEventListener('change', (e) => {
-                itensArray[idx].alerta = e.target.value;
-                itensArray[idx].alerta_definido_manualmente = true;
-            });
-            cellAlerta.appendChild(selectAlerta);
+            const inputAlerta = document.createElement('input');
+            inputAlerta.type = 'date';
+            inputAlerta.value = item.data_alerta || '';
+            inputAlerta.required = true;
+            inputAlerta.addEventListener('change', (e) => itensArray[idx].data_alerta = e.target.value);
+            cellAlerta.appendChild(inputAlerta);
             // Observação
             const cellObs = row.insertCell(7);
             const inputObs = document.createElement('input');
             inputObs.type = 'text';
             inputObs.value = item.observacao || '';
-            inputObs.placeholder = 'Observação';
+            inputObs.placeholder = 'Obs.';
             inputObs.addEventListener('change', (e) => itensArray[idx].observacao = e.target.value);
             cellObs.appendChild(inputObs);
             // Remover
@@ -748,8 +700,7 @@
             valor: 0,
             status: 'Ativo',
             canal: '',
-            alerta: '✅ OK',
-            alerta_definido_manualmente: false,
+            data_alerta: '',
             observacao: ''
         });
         renderizarItensTabela();
@@ -782,8 +733,7 @@
             valor: registro.valor,
             status: registro.status,
             canal: registro.canal,
-            alerta: registro.alerta,
-            alerta_definido_manualmente: true,
+            data_alerta: registro.data_alerta || '',
             observacao: registro.observacao || ''
         }];
         renderizarItensTabela();
@@ -798,9 +748,9 @@
             alert("Preencha Responsável e Empresa.");
             return;
         }
-        const itensValidos = itensArray.filter(item => item.grupo && item.cota && item.data_venc);
+        const itensValidos = itensArray.filter(item => item.grupo && item.cota && item.data_venc && item.data_alerta);
         if (itensValidos.length === 0) {
-            alert("Adicione pelo menos um item com Grupo, Cota e Data de vencimento.");
+            alert("Adicione pelo menos um item com Grupo, Cota, Data de Vencimento e Data do Alerta.");
             return;
         }
 
@@ -820,7 +770,7 @@
                 valor: item.valor,
                 status: item.status,
                 canal: item.canal,
-                alerta: item.alerta,
+                data_alerta: item.data_alerta,
                 observacao: item.observacao || ''
             });
         }
