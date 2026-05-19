@@ -41,7 +41,6 @@
             margin: 0 auto;
         }
 
-        /* Header */
         .header {
             display: flex;
             justify-content: space-between;
@@ -107,7 +106,6 @@
             font-size: 20px;
         }
 
-        /* Barra de ações */
         .action-bar {
             display: flex;
             justify-content: space-between;
@@ -184,15 +182,7 @@
         .btn-add:hover {
             background: #059669;
         }
-        .btn-danger {
-            background: #dc2626;
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #b91c1c;
-        }
 
-        /* Tabela */
         .table-wrapper {
             background: #0f1117;
             border-radius: 24px;
@@ -202,7 +192,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1200px;
+            min-width: 1100px;
         }
         th {
             text-align: left;
@@ -263,6 +253,18 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        /* Bolinha colorida do prazo */
+        .prazo-bolinha {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .prazo-verde { background-color: #10b981; box-shadow: 0 0 4px #10b981; }
+        .prazo-amarelo { background-color: #facc15; box-shadow: 0 0 4px #facc15; }
+        .prazo-vermelho { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
 
         /* Modal */
         .modal {
@@ -319,10 +321,6 @@
             padding: 10px 14px;
             color: #eef2ff;
             font-family: inherit;
-        }
-        .form-field textarea {
-            resize: vertical;
-            min-height: 60px;
         }
         .itens-section {
             margin-top: 20px;
@@ -391,7 +389,6 @@
             .action-bar { flex-direction: column; align-items: stretch; }
             .modal-content { padding: 16px; }
             .itens-table { font-size: 10px; }
-            .itens-table th, .itens-table td { padding: 4px; }
         }
     </style>
 </head>
@@ -428,13 +425,13 @@
     <div class="table-wrapper">
         <table id="dataTable">
             <thead>
-                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Dias</th><th>Observação</th><th style="width:70px">Ações</th></tr>
+                <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Prazo</th><th>Observação</th><th style="width:70px">Ações</th></tr>
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
         <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
     </div>
-    <footer>© 2026 CityBens — Alerta editável manualmente em cada cota.</footer>
+    <footer>© 2026 CityBens — Alerta editável e indicador de prazo por bolinha colorida.</footer>
 </div>
 
 <!-- MODAL DE CADASTRO/EDIÇÃO COM ITENS DINÂMICOS -->
@@ -476,41 +473,51 @@
     // ==================== ESTRUTURA DE DADOS ====================
     let dados = [];
     let currentEditId = null;
-    let itensArray = []; // itens temporários no modal
+    let itensArray = [];
 
-    // Salvar localStorage
     function salvarLocal() {
         localStorage.setItem("citybens_dados", JSON.stringify(dados));
     }
 
-    // Calcular dias restantes com base na data (apenas para exibição, não mexe no alerta)
-    function calcularDias(dataVencStr) {
-        if (!dataVencStr) return 999;
+    // Retorna a cor da bolinha baseada na data de vencimento
+    function getClassePrazo(dataVencStr) {
+        if (!dataVencStr) return "prazo-vermelho"; // sem data, considerado atrasado
         const hoje = new Date();
         hoje.setHours(0,0,0,0);
         const venc = new Date(dataVencStr);
         venc.setHours(0,0,0,0);
-        return Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+        if (venc < hoje) return "prazo-vermelho";
+        if (venc.getTime() === hoje.getTime()) return "prazo-amarelo";
+        return "prazo-verde";
     }
 
-    // Função para sugerir alerta baseado na data (usado apenas ao criar novo item)
+    // Calcula se é atrasado, hoje ou futuro (apenas para ícone)
+    function calcularStatusPrazo(dataVencStr) {
+        if (!dataVencStr) return "atrasado";
+        const hoje = new Date();
+        hoje.setHours(0,0,0,0);
+        const venc = new Date(dataVencStr);
+        venc.setHours(0,0,0,0);
+        if (venc < hoje) return "atrasado";
+        if (venc.getTime() === hoje.getTime()) return "hoje";
+        return "futuro";
+    }
+
+    // Sugere alerta baseado na data (usado apenas no novo item)
     function sugerirAlertaPorData(dataVencStr) {
-        const dias = calcularDias(dataVencStr);
-        if (dias < 0) return "🚨 ATRASADO";
-        if (dias === 0) return "🔥 VENCE HOJE";
-        if (dias <= 3) return "⚠️ 3 DIAS";
+        if (!dataVencStr) return "✅ OK";
+        const hoje = new Date();
+        hoje.setHours(0,0,0,0);
+        const venc = new Date(dataVencStr);
+        venc.setHours(0,0,0,0);
+        const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+        if (diff < 0) return "🚨 ATRASADO";
+        if (diff === 0) return "🔥 VENCE HOJE";
+        if (diff <= 3) return "⚠️ 3 DIAS";
         return "✅ OK";
     }
 
-    // Atualiza os campos de dias (apenas para exibição na tabela, sem alterar alerta)
-    function atualizarDiasExibicao() {
-        for (let reg of dados) {
-            reg.dias_vencimento = calcularDias(reg.data_venc);
-        }
-        salvarLocal();
-    }
-
-    // ==================== MIGRAÇÃO DE DADOS ANTIGOS ====================
+    // Migração de dados antigos (garantir campos)
     function migrarDadosAntigos() {
         let migrou = false;
         dados = dados.map(reg => {
@@ -567,6 +574,12 @@
         emptyDiv.style.display = 'none';
         tbody.innerHTML = filtrados.map(item => {
             const alertaClass = getClasseAlerta(item.alerta);
+            const prazoClass = getClassePrazo(item.data_venc);
+            const prazoStatus = calcularStatusPrazo(item.data_venc);
+            let tituloPrazo = "";
+            if (prazoStatus === "atrasado") tituloPrazo = "Atrasado";
+            else if (prazoStatus === "hoje") tituloPrazo = "Vence hoje";
+            else tituloPrazo = "No prazo";
             return `<tr>
                 <td>${escapeHtml(item.responsavel)}</td>
                 <td>${escapeHtml(item.empresa)}</td>
@@ -578,7 +591,7 @@
                 <td><span class="status-badge status-${item.status.toLowerCase()}">${item.status}</span></td>
                 <td>${escapeHtml(item.canal)}</td>
                 <td><span class="alerta-cell ${alertaClass}">${item.alerta}</span></td>
-                <td><strong>${item.dias_vencimento}</strong></td>
+                <td><span class="prazo-bolinha ${prazoClass}" title="${tituloPrazo}"></span></td>
                 <td class="obs-cell" title="${escapeHtml(item.observacao)}">${escapeHtml(item.observacao)}</td>
                 <td class="action-icons">
                     <i class="fas fa-edit" onclick="editarRegistro(${item.id})"></i>
@@ -596,7 +609,6 @@
     }
 
     function aplicarFiltros() {
-        atualizarDiasExibicao(); // Atualiza a coluna "Dias" sem mexer no alerta
         const resp = document.getElementById('filterResponsavel').value;
         const empresa = document.getElementById('filterEmpresa').value;
         const status = document.getElementById('filterStatus').value;
@@ -655,7 +667,7 @@
             inputCota.placeholder = 'Nº';
             inputCota.addEventListener('change', (e) => itensArray[idx].cota = e.target.value);
             cellCota.appendChild(inputCota);
-            // Data vencimento
+            // Data vencimento (completa)
             const cellData = row.insertCell(2);
             const inputData = document.createElement('input');
             inputData.type = 'date';
@@ -665,7 +677,6 @@
                 // Se o alerta não foi definido manualmente, sugere automático
                 if (!itensArray[idx].alerta_definido_manualmente) {
                     itensArray[idx].alerta = sugerirAlertaPorData(e.target.value);
-                    // Atualiza o select de alerta na linha
                     const selectAlerta = row.cells[6].querySelector('select');
                     if (selectAlerta) selectAlerta.value = itensArray[idx].alerta;
                 }
@@ -695,7 +706,7 @@
             inputCanal.placeholder = 'Canal';
             inputCanal.addEventListener('change', (e) => itensArray[idx].canal = e.target.value);
             cellCanal.appendChild(inputCanal);
-            // Alerta (editável manualmente)
+            // Alerta (editável)
             const cellAlerta = row.insertCell(6);
             const selectAlerta = document.createElement('select');
             selectAlerta.innerHTML = `<option ${item.alerta === '🚨 ATRASADO' ? 'selected' : ''}>🚨 ATRASADO</option>
@@ -704,7 +715,7 @@
                                       <option ${item.alerta === '✅ OK' ? 'selected' : ''}>✅ OK</option>`;
             selectAlerta.addEventListener('change', (e) => {
                 itensArray[idx].alerta = e.target.value;
-                itensArray[idx].alerta_definido_manualmente = true; // marca que foi editado manualmente
+                itensArray[idx].alerta_definido_manualmente = true;
             });
             cellAlerta.appendChild(selectAlerta);
             // Observação
@@ -712,7 +723,7 @@
             const inputObs = document.createElement('input');
             inputObs.type = 'text';
             inputObs.value = item.observacao || '';
-            inputObs.placeholder = 'Obs.';
+            inputObs.placeholder = 'Observação';
             inputObs.addEventListener('change', (e) => itensArray[idx].observacao = e.target.value);
             cellObs.appendChild(inputObs);
             // Remover
@@ -744,7 +755,6 @@
         renderizarItensTabela();
     }
 
-    // ==================== AÇÕES DO MODAL ====================
     function novoRegistro() {
         currentEditId = null;
         document.getElementById('modalTitle').innerText = '➕ Novo registro (múltiplas cotas)';
@@ -761,11 +771,10 @@
         const registro = dados.find(r => r.id === id);
         if (!registro) return;
         currentEditId = id;
-        document.getElementById('modalTitle').innerText = '✏️ Editar registro (item único)';
+        document.getElementById('modalTitle').innerText = '✏️ Editar registro';
         document.getElementById('editResponsavel').value = registro.responsavel;
         document.getElementById('editEmpresa').value = registro.empresa;
         document.getElementById('editAdministradora').value = registro.administradora || '';
-        // Carrega o item existente
         itensArray = [{
             grupo: registro.grupo,
             cota: registro.cota,
@@ -774,7 +783,7 @@
             status: registro.status,
             canal: registro.canal,
             alerta: registro.alerta,
-            alerta_definido_manualmente: true, // respeita o alerta salvo
+            alerta_definido_manualmente: true,
             observacao: registro.observacao || ''
         }];
         renderizarItensTabela();
@@ -795,14 +804,12 @@
             return;
         }
 
-        // Se for edição de um registro existente, remove ele e adiciona os itens como novos (ou atualiza)
         if (currentEditId) {
             dados = dados.filter(r => r.id !== currentEditId);
         }
-        // Adiciona cada item como um registro independente
         for (let item of itensValidos) {
             const novoId = Date.now() + Math.random();
-            const novoReg = {
+            dados.push({
                 id: novoId,
                 responsavel: responsavel,
                 empresa: empresa,
@@ -813,11 +820,9 @@
                 valor: item.valor,
                 status: item.status,
                 canal: item.canal,
-                alerta: item.alerta,  // alerta manual escolhido pelo usuário
-                observacao: item.observacao || '',
-                dias_vencimento: calcularDias(item.data_venc)
-            };
-            dados.push(novoReg);
+                alerta: item.alerta,
+                observacao: item.observacao || ''
+            });
         }
         salvarLocal();
         atualizarFiltrosSelect();
@@ -849,7 +854,6 @@
         });
     }
 
-    // ==================== INICIALIZAÇÃO ====================
     function carregarDados() {
         const saved = localStorage.getItem("citybens_dados");
         if (saved) {
@@ -858,7 +862,6 @@
         } else {
             dados = [];
         }
-        atualizarDiasExibicao();
         atualizarFiltrosSelect();
         aplicarFiltros();
     }
