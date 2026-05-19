@@ -202,7 +202,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1100px;
+            min-width: 1200px;
         }
         th {
             text-align: left;
@@ -281,7 +281,7 @@
         .modal-content {
             background: #111318;
             border-radius: 32px;
-            max-width: 900px;
+            max-width: 1100px;
             width: 95%;
             max-height: 90vh;
             overflow-y: auto;
@@ -342,12 +342,12 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 16px;
+            font-size: 12px;
         }
         .itens-table th, .itens-table td {
             padding: 8px;
             border: 1px solid #2d3748;
             text-align: left;
-            font-size: 13px;
         }
         .itens-table th {
             background: #1a1c23;
@@ -356,6 +356,7 @@
             width: 100%;
             padding: 6px;
             font-size: 12px;
+            background: #0f1117;
         }
         .btn-remove-item {
             background: none;
@@ -389,7 +390,8 @@
             .filters { width: 100%; }
             .action-bar { flex-direction: column; align-items: stretch; }
             .modal-content { padding: 16px; }
-            .itens-table { font-size: 11px; }
+            .itens-table { font-size: 10px; }
+            .itens-table th, .itens-table td { padding: 4px; }
         }
     </style>
 </head>
@@ -432,7 +434,7 @@
         </table>
         <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
     </div>
-    <footer>© 2026 CityBens — Dados salvos localmente. Suporte a múltiplas cotas por cadastro.</footer>
+    <footer>© 2026 CityBens — Alerta editável manualmente em cada cota.</footer>
 </div>
 
 <!-- MODAL DE CADASTRO/EDIÇÃO COM ITENS DINÂMICOS -->
@@ -440,14 +442,12 @@
     <div class="modal-content">
         <h3 id="modalTitle">Novo registro (múltiplas cotas)</h3>
         
-        <!-- Dados gerais (compartilhados entre todos os itens) -->
         <div class="form-grid">
             <div class="form-field"><label>Responsável *</label><input type="text" id="editResponsavel" required></div>
             <div class="form-field"><label>Empresa *</label><input type="text" id="editEmpresa" required></div>
             <div class="form-field full"><label>Administradora</label><input type="text" id="editAdministradora"></div>
         </div>
 
-        <!-- Seção de itens (grupo, cota, data, valor, status, canal, observação) -->
         <div class="itens-section">
             <div class="itens-header">
                 <h4><i class="fas fa-list"></i> Itens (grupo/cota)</h4>
@@ -456,10 +456,10 @@
             <div style="overflow-x: auto;">
                 <table class="itens-table" id="itensTable">
                     <thead>
-                        <tr><th>Grupo</th><th>Cota</th><th>Data vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Observação</th><th style="width:40px"></th></tr>
+                        <tr><th>Grupo</th><th>Cota</th><th>Data vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Alerta</th><th>Observação</th><th style="width:40px"></th></tr>
                     </thead>
                     <tbody id="itensBody">
-                        <!-- Linhas dinâmicas serão inseridas aqui -->
+                        <!-- Linhas dinâmicas -->
                     </tbody>
                 </table>
             </div>
@@ -474,82 +474,72 @@
 
 <script>
     // ==================== ESTRUTURA DE DADOS ====================
-    // Cada registro agora tem: id, responsavel, empresa, administradora, 
-    // grupo, cota, data_venc (YYYY-MM-DD), valor, status, canal, observacao
-    // alerta e dias_vencimento são calculados automaticamente.
     let dados = [];
-    let currentEditId = null;        // Se for edição de um registro existente (único item)
-    let isEditingMultiple = false;    // Flag para saber se estamos editando um único item ou criando múltiplos
-    let editingOriginalId = null;     // ID do registro que está sendo editado (quando edição individual)
+    let currentEditId = null;
+    let itensArray = []; // itens temporários no modal
 
-    // Salvar no localStorage
+    // Salvar localStorage
     function salvarLocal() {
         localStorage.setItem("citybens_dados", JSON.stringify(dados));
     }
 
-    // Calcular alerta e dias com base na data de vencimento (formato YYYY-MM-DD)
-    function calcularAlertaEDias(dataVencStr) {
-        if (!dataVencStr) return { alerta: "✅ OK", dias: 999 };
+    // Calcular dias restantes com base na data (apenas para exibição, não mexe no alerta)
+    function calcularDias(dataVencStr) {
+        if (!dataVencStr) return 999;
         const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
+        hoje.setHours(0,0,0,0);
         const venc = new Date(dataVencStr);
-        venc.setHours(0, 0, 0, 0);
-        const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
-        let alerta = "";
-        if (diff < 0) alerta = "🚨 ATRASADO";
-        else if (diff === 0) alerta = "🔥 VENCE HOJE";
-        else if (diff <= 3) alerta = "⚠️ 3 DIAS";
-        else alerta = "✅ OK";
-        return { alerta, dias: diff };
+        venc.setHours(0,0,0,0);
+        return Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
     }
 
-    // Atualizar alerta e dias de um registro individual
-    function atualizarRegistro(registro) {
-        const { alerta, dias } = calcularAlertaEDias(registro.data_venc);
-        registro.alerta = alerta;
-        registro.dias_vencimento = dias;
-        return registro;
+    // Função para sugerir alerta baseado na data (usado apenas ao criar novo item)
+    function sugerirAlertaPorData(dataVencStr) {
+        const dias = calcularDias(dataVencStr);
+        if (dias < 0) return "🚨 ATRASADO";
+        if (dias === 0) return "🔥 VENCE HOJE";
+        if (dias <= 3) return "⚠️ 3 DIAS";
+        return "✅ OK";
     }
 
-    // Recalcular todos os alertas (útil ao carregar ou após mudanças de data)
-    function recalcularTodosAlertas() {
-        dados.forEach(r => atualizarRegistro(r));
+    // Atualiza os campos de dias (apenas para exibição na tabela, sem alterar alerta)
+    function atualizarDiasExibicao() {
+        for (let reg of dados) {
+            reg.dias_vencimento = calcularDias(reg.data_venc);
+        }
         salvarLocal();
     }
 
     // ==================== MIGRAÇÃO DE DADOS ANTIGOS ====================
-    // Converte registros antigos (com dia_vencimento) para novo formato (data_venc)
     function migrarDadosAntigos() {
         let migrou = false;
         dados = dados.map(reg => {
             if (!reg.data_venc && reg.dia_vencimento) {
-                // Cria uma data aproximada: dia do mês atual, ou próximo mês se já passou
                 const hoje = new Date();
                 let ano = hoje.getFullYear();
                 let mes = hoje.getMonth();
                 let dia = reg.dia_vencimento;
                 let dataCandidata = new Date(ano, mes, dia);
-                if (dataCandidata < hoje) {
-                    dataCandidata = new Date(ano, mes + 1, dia);
-                }
-                // Formato YYYY-MM-DD
+                if (dataCandidata < hoje) dataCandidata = new Date(ano, mes + 1, dia);
                 const anoStr = dataCandidata.getFullYear();
                 const mesStr = String(dataCandidata.getMonth() + 1).padStart(2, '0');
                 const diaStr = String(dataCandidata.getDate()).padStart(2, '0');
                 reg.data_venc = `${anoStr}-${mesStr}-${diaStr}`;
                 migrou = true;
             }
-            // Remove campos antigos que não serão mais usados
-            delete reg.dia_vencimento;
-            delete reg.email;
-            // Garante campo observacao
+            if (!reg.alerta) {
+                reg.alerta = sugerirAlertaPorData(reg.data_venc);
+                migrou = true;
+            }
             if (!reg.observacao) reg.observacao = "";
+            delete reg.email;
+            delete reg.dia_vencimento;
             return reg;
         });
         if (migrou) salvarLocal();
     }
 
-    // ==================== FUNÇÕES DA TABELA PRINCIPAL ====================
+    // ==================== RENDERIZAÇÃO DA TABELA PRINCIPAL ====================
     function getClasseAlerta(alerta) {
         if (alerta.includes("ATRASADO")) return "alerta-atrasado";
         if (alerta.includes("VENCE HOJE")) return "alerta-vence";
@@ -560,7 +550,6 @@
     function formatarData(dataStr) {
         if (!dataStr) return "";
         const partes = dataStr.split("-");
-        if (partes.length !== 3) return dataStr;
         return `${partes[2]}/${partes[1]}/${partes[0]}`;
     }
 
@@ -599,7 +588,7 @@
         }).join('');
 
         const total = filtrados.length;
-        const alertasCriticos = filtrados.filter(f => f.dias_vencimento <= 3 || f.dias_vencimento < 0).length;
+        const alertasCriticos = filtrados.filter(f => f.alerta.includes("ATRASADO") || f.alerta.includes("VENCE HOJE") || f.alerta.includes("3 DIAS")).length;
         const somaValor = filtrados.reduce((acc, f) => acc + f.valor, 0);
         document.getElementById('totalRegistros').innerText = total;
         document.getElementById('totalAlertas').innerText = alertasCriticos;
@@ -607,7 +596,7 @@
     }
 
     function aplicarFiltros() {
-        recalcularTodosAlertas(); // Atualiza alertas antes de filtrar
+        atualizarDiasExibicao(); // Atualiza a coluna "Dias" sem mexer no alerta
         const resp = document.getElementById('filterResponsavel').value;
         const empresa = document.getElementById('filterEmpresa').value;
         const status = document.getElementById('filterStatus').value;
@@ -643,9 +632,7 @@
         aplicarFiltros();
     }
 
-    // ==================== GERENCIAMENTO DOS ITENS DINÂMICOS NO MODAL ====================
-    let itensArray = []; // Armazena os itens temporariamente enquanto o modal está aberto
-
+    // ==================== MODAL - ITENS DINÂMICOS ====================
     function renderizarItensTabela() {
         const tbody = document.getElementById('itensBody');
         if (!tbody) return;
@@ -657,7 +644,7 @@
             const inputGrupo = document.createElement('input');
             inputGrupo.type = 'text';
             inputGrupo.value = item.grupo || '';
-            inputGrupo.placeholder = 'Ex: Grupo A';
+            inputGrupo.placeholder = 'Grupo';
             inputGrupo.addEventListener('change', (e) => itensArray[idx].grupo = e.target.value);
             cellGrupo.appendChild(inputGrupo);
             // Cota
@@ -673,7 +660,16 @@
             const inputData = document.createElement('input');
             inputData.type = 'date';
             inputData.value = item.data_venc || '';
-            inputData.addEventListener('change', (e) => itensArray[idx].data_venc = e.target.value);
+            inputData.addEventListener('change', (e) => {
+                itensArray[idx].data_venc = e.target.value;
+                // Se o alerta não foi definido manualmente, sugere automático
+                if (!itensArray[idx].alerta_definido_manualmente) {
+                    itensArray[idx].alerta = sugerirAlertaPorData(e.target.value);
+                    // Atualiza o select de alerta na linha
+                    const selectAlerta = row.cells[6].querySelector('select');
+                    if (selectAlerta) selectAlerta.value = itensArray[idx].alerta;
+                }
+            });
             cellData.appendChild(inputData);
             // Valor
             const cellValor = row.insertCell(3);
@@ -699,16 +695,28 @@
             inputCanal.placeholder = 'Canal';
             inputCanal.addEventListener('change', (e) => itensArray[idx].canal = e.target.value);
             cellCanal.appendChild(inputCanal);
-            // Observação (por item)
-            const cellObs = row.insertCell(6);
+            // Alerta (editável manualmente)
+            const cellAlerta = row.insertCell(6);
+            const selectAlerta = document.createElement('select');
+            selectAlerta.innerHTML = `<option ${item.alerta === '🚨 ATRASADO' ? 'selected' : ''}>🚨 ATRASADO</option>
+                                      <option ${item.alerta === '🔥 VENCE HOJE' ? 'selected' : ''}>🔥 VENCE HOJE</option>
+                                      <option ${item.alerta === '⚠️ 3 DIAS' ? 'selected' : ''}>⚠️ 3 DIAS</option>
+                                      <option ${item.alerta === '✅ OK' ? 'selected' : ''}>✅ OK</option>`;
+            selectAlerta.addEventListener('change', (e) => {
+                itensArray[idx].alerta = e.target.value;
+                itensArray[idx].alerta_definido_manualmente = true; // marca que foi editado manualmente
+            });
+            cellAlerta.appendChild(selectAlerta);
+            // Observação
+            const cellObs = row.insertCell(7);
             const inputObs = document.createElement('input');
             inputObs.type = 'text';
             inputObs.value = item.observacao || '';
-            inputObs.placeholder = 'Obs. do item';
+            inputObs.placeholder = 'Obs.';
             inputObs.addEventListener('change', (e) => itensArray[idx].observacao = e.target.value);
             cellObs.appendChild(inputObs);
-            // Ação remover
-            const cellAction = row.insertCell(7);
+            // Remover
+            const cellAction = row.insertCell(8);
             const btnRemove = document.createElement('button');
             btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
             btnRemove.className = 'btn-remove-item';
@@ -718,10 +726,7 @@
             };
             cellAction.appendChild(btnRemove);
         });
-        // Se não houver itens, adiciona um padrão
-        if (itensArray.length === 0) {
-            adicionarItemVazio();
-        }
+        if (itensArray.length === 0) adicionarItemVazio();
     }
 
     function adicionarItemVazio() {
@@ -732,41 +737,35 @@
             valor: 0,
             status: 'Ativo',
             canal: '',
+            alerta: '✅ OK',
+            alerta_definido_manualmente: false,
             observacao: ''
         });
         renderizarItensTabela();
     }
 
-    // ==================== ABRIR MODAL PARA NOVO REGISTRO (MÚLTIPLOS ITENS) ====================
+    // ==================== AÇÕES DO MODAL ====================
     function novoRegistro() {
         currentEditId = null;
-        editingOriginalId = null;
-        isEditingMultiple = false;
         document.getElementById('modalTitle').innerText = '➕ Novo registro (múltiplas cotas)';
-        // Limpar campos gerais
         document.getElementById('editResponsavel').value = '';
         document.getElementById('editEmpresa').value = '';
         document.getElementById('editAdministradora').value = '';
-        // Inicializar itensArray com um item vazio
         itensArray = [];
-        adicionarItemVazio(); // adiciona um item padrão
+        adicionarItemVazio();
         renderizarItensTabela();
         document.getElementById('modalEditar').style.display = 'flex';
     }
 
-    // ==================== EDITAR REGISTRO EXISTENTE (ÚNICO ITEM) ====================
     function editarRegistro(id) {
         const registro = dados.find(r => r.id === id);
         if (!registro) return;
         currentEditId = id;
-        editingOriginalId = id;
-        isEditingMultiple = false;
-        document.getElementById('modalTitle').innerText = '✏️ Editar registro';
-        // Preencher campos gerais
+        document.getElementById('modalTitle').innerText = '✏️ Editar registro (item único)';
         document.getElementById('editResponsavel').value = registro.responsavel;
         document.getElementById('editEmpresa').value = registro.empresa;
         document.getElementById('editAdministradora').value = registro.administradora || '';
-        // Criar um único item com os dados do registro
+        // Carrega o item existente
         itensArray = [{
             grupo: registro.grupo,
             cota: registro.cota,
@@ -774,90 +773,62 @@
             valor: registro.valor,
             status: registro.status,
             canal: registro.canal,
+            alerta: registro.alerta,
+            alerta_definido_manualmente: true, // respeita o alerta salvo
             observacao: registro.observacao || ''
         }];
         renderizarItensTabela();
         document.getElementById('modalEditar').style.display = 'flex';
     }
 
-    // ==================== SALVAR (CRIAR VÁRIOS REGISTROS OU ATUALIZAR UM) ====================
     function salvarEdicao() {
         const responsavel = document.getElementById('editResponsavel').value.trim();
         const empresa = document.getElementById('editEmpresa').value.trim();
         const administradora = document.getElementById('editAdministradora').value.trim();
-
         if (!responsavel || !empresa) {
-            alert("Preencha pelo menos Responsável e Empresa.");
+            alert("Preencha Responsável e Empresa.");
             return;
         }
-
-        // Validar itens
         const itensValidos = itensArray.filter(item => item.grupo && item.cota && item.data_venc);
         if (itensValidos.length === 0) {
-            alert("Adicione pelo menos um item com Grupo, Cota e Data de vencimento preenchidos.");
+            alert("Adicione pelo menos um item com Grupo, Cota e Data de vencimento.");
             return;
         }
 
-        if (currentEditId && !isEditingMultiple) {
-            // Modo edição de um registro existente (substitui o registro)
-            const registroAntigo = dados.find(r => r.id === currentEditId);
-            if (registroAntigo) {
-                // Remove o antigo e adiciona o(s) novo(s) item(ns)? O usuário pode ter adicionado mais itens na edição.
-                // Vamos remover o antigo e adicionar todos os itens do modal como novos registros.
-                dados = dados.filter(r => r.id !== currentEditId);
-                for (let item of itensValidos) {
-                    const novoId = Date.now() + Math.random();
-                    const novoReg = {
-                        id: novoId,
-                        responsavel: responsavel,
-                        empresa: empresa,
-                        administradora: administradora,
-                        grupo: item.grupo,
-                        cota: item.cota,
-                        data_venc: item.data_venc,
-                        valor: item.valor,
-                        status: item.status,
-                        canal: item.canal,
-                        observacao: item.observacao || ''
-                    };
-                    atualizarRegistro(novoReg);
-                    dados.push(novoReg);
-                }
-            }
-        } else {
-            // Modo novo registro: cria um registro para cada item
-            for (let item of itensValidos) {
-                const novoId = Date.now() + Math.random();
-                const novoReg = {
-                    id: novoId,
-                    responsavel: responsavel,
-                    empresa: empresa,
-                    administradora: administradora,
-                    grupo: item.grupo,
-                    cota: item.cota,
-                    data_venc: item.data_venc,
-                    valor: item.valor,
-                    status: item.status,
-                    canal: item.canal,
-                    observacao: item.observacao || ''
-                };
-                atualizarRegistro(novoReg);
-                dados.push(novoReg);
-            }
+        // Se for edição de um registro existente, remove ele e adiciona os itens como novos (ou atualiza)
+        if (currentEditId) {
+            dados = dados.filter(r => r.id !== currentEditId);
         }
-
+        // Adiciona cada item como um registro independente
+        for (let item of itensValidos) {
+            const novoId = Date.now() + Math.random();
+            const novoReg = {
+                id: novoId,
+                responsavel: responsavel,
+                empresa: empresa,
+                administradora: administradora,
+                grupo: item.grupo,
+                cota: item.cota,
+                data_venc: item.data_venc,
+                valor: item.valor,
+                status: item.status,
+                canal: item.canal,
+                alerta: item.alerta,  // alerta manual escolhido pelo usuário
+                observacao: item.observacao || '',
+                dias_vencimento: calcularDias(item.data_venc)
+            };
+            dados.push(novoReg);
+        }
         salvarLocal();
-        recalcularTodosAlertas();
         atualizarFiltrosSelect();
         aplicarFiltros();
         fecharModal();
     }
 
     function excluirRegistro(id) {
-        if (confirm('Tem certeza que deseja excluir este registro permanentemente?')) {
+        if (confirm('Excluir permanentemente este registro?')) {
             dados = dados.filter(r => r.id !== id);
             salvarLocal();
-            recalcularTodosAlertas();
             atualizarFiltrosSelect();
             aplicarFiltros();
         }
@@ -868,12 +839,12 @@
         itensArray = [];
     }
 
-    function escapeHtml(str) { 
-        if (!str) return ''; 
-        return str.replace(/[&<>]/g, function(m){
-            if(m==='&') return '&amp;';
-            if(m==='<') return '&lt;';
-            if(m==='>') return '&gt;';
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
             return m;
         });
     }
@@ -883,11 +854,11 @@
         const saved = localStorage.getItem("citybens_dados");
         if (saved) {
             dados = JSON.parse(saved);
-            migrarDadosAntigos();  // Converte registros antigos se necessário
+            migrarDadosAntigos();
         } else {
             dados = [];
         }
-        recalcularTodosAlertas();
+        atualizarDiasExibicao();
         atualizarFiltrosSelect();
         aplicarFiltros();
     }
@@ -897,11 +868,9 @@
         document.getElementById('btnNovoRegistro').addEventListener('click', novoRegistro);
         document.getElementById('btnCancelarModal').addEventListener('click', fecharModal);
         document.getElementById('btnSalvarModal').addEventListener('click', salvarEdicao);
-        document.getElementById('btnAdicionarItem').addEventListener('click', () => {
-            adicionarItemVazio();
-        });
-        window.addEventListener('click', (e) => { if(e.target === document.getElementById('modalEditar')) fecharModal(); });
-        document.getElementById('searchBox').addEventListener('keypress', (e) => { if(e.key === 'Enter') aplicarFiltros(); });
+        document.getElementById('btnAdicionarItem').addEventListener('click', () => adicionarItemVazio());
+        window.addEventListener('click', (e) => { if (e.target === document.getElementById('modalEditar')) fecharModal(); });
+        document.getElementById('searchBox').addEventListener('keypress', (e) => { if (e.key === 'Enter') aplicarFiltros(); });
     });
 </script>
 </body>
