@@ -143,7 +143,13 @@
         .status-ativo { background: #1e3a8a20; color: #60a5fa; border: 1px solid #2563eb40; }
         .status-pago { background: #10b98120; color: #34d399; border: 1px solid #10b98140; }
         .status-contemplado { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
-        .action-icons i { font-size: 18px; margin: 0 6px; cursor: pointer; color: #94a3b8; }
+        .action-icons i {
+            font-size: 18px;
+            margin: 0 6px;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: 0.2s;
+        }
         .action-icons i:hover { color: #facc15; }
         .valor-cell { font-weight: 600; color: #facc15; }
         .obs-cell, .acontecimentos-cell {
@@ -378,6 +384,7 @@
         let currentEditId = null;
         let itensArray = [];
 
+        // ========== PERSISTÊNCIA ==========
         function salvarLocal() {
             localStorage.setItem("citybens_dados", JSON.stringify(dados));
         }
@@ -624,7 +631,7 @@
             if (registro) abrirVisualizacao(registro);
         };
 
-        // ========== MODAL DE EDIÇÃO (mantido igual) ==========
+        // ========== MODAL DE EDIÇÃO ==========
         function renderizarItensTabelaModal() {
             const tbody = document.getElementById('itensBody');
             tbody.innerHTML = '';
