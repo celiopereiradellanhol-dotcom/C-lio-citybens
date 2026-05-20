@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>CityBens | Gestão Financeira</title>
+    <title>CityBens | Backup e Restauração</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -101,6 +101,8 @@
         .btn-add:hover { background: #059669; }
         .btn-backup { background: #3b82f6; color: white; }
         .btn-backup:hover { background: #2563eb; }
+        .btn-restore { background: #8b5cf6; color: white; }
+        .btn-restore:hover { background: #7c3aed; }
 
         .table-wrapper {
             background: #0f1117;
@@ -139,8 +141,8 @@
             font-weight: 600;
         }
         .status-ativo { background: #1e3a8a20; color: #60a5fa; border: 1px solid #2563eb40; }
-        .status-contemplado { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
         .status-pago { background: #10b98120; color: #34d399; border: 1px solid #10b98140; }
+        .status-contemplado { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
         .action-icons i { font-size: 18px; margin: 0 6px; cursor: pointer; color: #94a3b8; }
         .action-icons i:hover { color: #facc15; }
         .valor-cell { font-weight: 600; color: #facc15; }
@@ -222,6 +224,8 @@
         .modal-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
         footer { text-align: center; margin-top: 32px; font-size: 12px; color: #4b5563; }
+
+        #restoreFileInput { display: none; }
         @media (max-width: 768px) {
             body { padding: 16px; }
             .form-grid { grid-template-columns: 1fr; }
@@ -241,7 +245,7 @@
             <div class="logo-icon">CB</div>
             <div class="logo-text">
                 <h1>CityBens</h1>
-                <p>Fila de Atendimento • Backup Manual</p>
+                <p>Fila de Atendimento • Backup e Restauração</p>
             </div>
         </div>
         <div class="header-stats">
@@ -255,7 +259,7 @@
         <div class="filters">
             <div class="filter-group"><label>Responsável</label><select id="filterResponsavel"><option value="">Todos</option></select></div>
             <div class="filter-group"><label>Empresa</label><select id="filterEmpresa"><option value="">Todos</option></select></div>
-            <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
+            <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Pago</option><option>Contemplado</option></select></div>
             <div class="filter-group"><label>Situação Retorno</label><select id="filterRetorno"><option value="">Todos</option><option>🔴 Atrasado</option><option>🟡 Hoje</option><option>🟢 Futuro</option></select></div>
             <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, obs..."></div>
             <button class="btn btn-primary" id="btnFiltrar"><i class="fas fa-search"></i> Filtrar</button>
@@ -263,7 +267,9 @@
         </div>
         <div>
             <button class="btn btn-backup" id="btnBackupManual"><i class="fas fa-download"></i> Backup agora</button>
+            <button class="btn btn-restore" id="btnRestoreBackup"><i class="fas fa-upload"></i> Restaurar backup</button>
             <button class="btn btn-add" id="btnNovoRegistro"><i class="fas fa-plus"></i> Novo registro</button>
+            <input type="file" id="restoreFileInput" accept=".json">
         </div>
     </div>
 
@@ -276,7 +282,7 @@
         </table>
         <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
     </div>
-    <footer>© 2026 CityBens — Backup manual. Use o botão azul para salvar seus dados.</footer>
+    <footer>© 2026 CityBens — Backup manual e restauração de dados via arquivo JSON.</footer>
 </div>
 
 <!-- MODAL DE CADASTRO/EDIÇÃO -->
@@ -311,17 +317,14 @@
 
 <script>
     (function() {
-        // Dados principais
         let dados = [];
         let currentEditId = null;
         let itensArray = [];
 
-        // Salvar no localStorage
         function salvarLocal() {
             localStorage.setItem("citybens_dados", JSON.stringify(dados));
         }
 
-        // Carregar dados
         function carregarDados() {
             const saved = localStorage.getItem("citybens_dados");
             if (saved) {
@@ -346,69 +349,91 @@
             }
         }
 
-        // Backup manual
         function fazerBackup() {
             const data = new Date();
-            const ano = data.getFullYear();
-            const mes = String(data.getMonth() + 1).padStart(2, '0');
-            const dia = String(data.getDate()).padStart(2, '0');
-            const hora = String(data.getHours()).padStart(2, '0');
-            const minuto = String(data.getMinutes()).padStart(2, '0');
-            const segundo = String(data.getSeconds()).padStart(2, '0');
-            const nomeArquivo = `citybens_backup_${ano}-${mes}-${dia}_${hora}-${minuto}-${segundo}.json`;
-            
-            const dadosBackup = {
-                data_exportacao: data.toISOString(),
-                versao: "1.0",
-                registros: dados
-            };
-            const jsonStr = JSON.stringify(dadosBackup, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
+            const nome = `citybens_backup_${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,'0')}-${String(data.getDate()).padStart(2,'0')}_${String(data.getHours()).padStart(2,'0')}-${String(data.getMinutes()).padStart(2,'0')}-${String(data.getSeconds()).padStart(2,'0')}.json`;
+            const backup = { data_exportacao: data.toISOString(), versao: "1.0", registros: dados };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = nomeArquivo;
+            a.download = nome;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
             const btn = document.getElementById('btnBackupManual');
-            const originalHtml = btn.innerHTML;
+            const original = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-check"></i> Backup salvo!';
-            setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+            setTimeout(() => { btn.innerHTML = original; }, 2000);
         }
 
-        // Funções auxiliares
+        function restaurarBackup(arquivo) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const conteudo = JSON.parse(e.target.result);
+                    let registros = [];
+                    if (conteudo.registros && Array.isArray(conteudo.registros)) registros = conteudo.registros;
+                    else if (Array.isArray(conteudo)) registros = conteudo;
+                    else throw new Error("Formato inválido");
+                    registros = registros.map(reg => ({
+                        id: reg.id || Date.now() + Math.random(),
+                        responsavel: reg.responsavel || "",
+                        empresa: reg.empresa || "",
+                        administradora: reg.administradora || "",
+                        grupo: reg.grupo || "",
+                        cota: reg.cota || "",
+                        data_venc: reg.data_venc || "",
+                        valor: reg.valor || 0,
+                        status: reg.status || "Ativo",
+                        canal: reg.canal || "",
+                        data_retorno: reg.data_retorno || "",
+                        observacao: reg.observacao || "",
+                        acontecimentos: reg.acontecimentos || ""
+                    }));
+                    if (confirm(`Restaurar ${registros.length} registros? Os dados atuais serão substituídos.`)) {
+                        dados = registros;
+                        salvarLocal();
+                        atualizarFiltrosSelect();
+                        aplicarFiltros();
+                        alert("Backup restaurado! A página será recarregada.");
+                        location.reload();
+                    }
+                } catch(err) {
+                    alert("Erro: arquivo inválido ou corrompido.");
+                }
+            };
+            reader.onerror = () => alert("Erro ao ler arquivo.");
+            reader.readAsText(arquivo);
+        }
+
         function formatarData(dataStr) {
             if (!dataStr) return "";
             const partes = dataStr.split("-");
-            if (partes.length !== 3) return dataStr;
-            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : dataStr;
         }
 
-        function getPrioridadeRetorno(dataRetornoStr) {
-            if (!dataRetornoStr) return 0;
-            const hoje = new Date();
-            hoje.setHours(0,0,0,0);
-            const retorno = new Date(dataRetornoStr);
-            retorno.setHours(0,0,0,0);
-            if (retorno < hoje) return 0;
-            if (retorno.getTime() === hoje.getTime()) return 1;
+        function getPrioridadeRetorno(data) {
+            if (!data) return 0;
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const ret = new Date(data); ret.setHours(0,0,0,0);
+            if (ret < hoje) return 0;
+            if (ret.getTime() === hoje.getTime()) return 1;
             return 2;
         }
 
-        function getSituacaoRetorno(dataRetornoStr) {
-            const p = getPrioridadeRetorno(dataRetornoStr);
+        function getSituacaoRetorno(data) {
+            const p = getPrioridadeRetorno(data);
             if (p === 0) return "atrasado";
             if (p === 1) return "hoje";
             return "futuro";
         }
 
-        function getClasseRetornoBol(dataRetornoStr) {
-            const sit = getSituacaoRetorno(dataRetornoStr);
-            if (sit === "atrasado") return "retorno-vermelho";
-            if (sit === "hoje") return "retorno-amarelo";
+        function getClasseRetornoBol(data) {
+            const s = getSituacaoRetorno(data);
+            if (s === "atrasado") return "retorno-vermelho";
+            if (s === "hoje") return "retorno-amarelo";
             return "retorno-verde";
         }
 
@@ -422,7 +447,6 @@
             });
         }
 
-        // Renderizar tabela
         function renderizarTabela(filtrados) {
             const tbody = document.getElementById('tableBody');
             const emptyDiv = document.getElementById('emptyState');
@@ -438,10 +462,7 @@
             tbody.innerHTML = filtrados.map(item => {
                 const classeBol = getClasseRetornoBol(item.data_retorno);
                 const situacao = getSituacaoRetorno(item.data_retorno);
-                let tituloBol = "";
-                if (situacao === "atrasado") tituloBol = "Atrasado";
-                else if (situacao === "hoje") tituloBol = "Retorno hoje";
-                else tituloBol = "Futuro";
+                let titulo = situacao === "atrasado" ? "Atrasado" : (situacao === "hoje" ? "Retorno hoje" : "Futuro");
                 const statusClass = `status-${item.status.toLowerCase()}`;
                 return `<tr>
                     <td>${escapeHtml(item.responsavel)}</td>
@@ -453,7 +474,7 @@
                     <td class="valor-cell">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
                     <td><span class="status-badge ${statusClass}">${item.status}</span></td>
                     <td>${escapeHtml(item.canal)}</td>
-                    <td>${formatarData(item.data_retorno)} <span class="retorno-bolinha ${classeBol}" title="${tituloBol}"></span></td>
+                    <td>${formatarData(item.data_retorno)} <span class="retorno-bolinha ${classeBol}" title="${titulo}"></span></td>
                     <td class="obs-cell" title="${escapeHtml(item.observacao)}">${escapeHtml(item.observacao)}</td>
                     <td class="acontecimentos-cell" title="${escapeHtml(item.acontecimentos)}">${escapeHtml(item.acontecimentos)}</td>
                     <td class="action-icons">
@@ -462,16 +483,12 @@
                     </td>
                 </tr>`;
             }).join('');
-
             const total = filtrados.length;
-            const retornosCriticos = filtrados.filter(f => {
-                const sit = getSituacaoRetorno(f.data_retorno);
-                return sit === "atrasado" || sit === "hoje";
-            }).length;
-            const somaValor = filtrados.reduce((acc, f) => acc + f.valor, 0);
+            const criticos = filtrados.filter(f => getSituacaoRetorno(f.data_retorno) !== "futuro").length;
+            const soma = filtrados.reduce((acc, f) => acc + f.valor, 0);
             document.getElementById('totalRegistros').innerText = total;
-            document.getElementById('totalAlertas').innerText = retornosCriticos;
-            document.getElementById('valorTotal').innerHTML = 'R$ ' + somaValor.toLocaleString('pt-BR', {maximumFractionDigits:2});
+            document.getElementById('totalAlertas').innerText = criticos;
+            document.getElementById('valorTotal').innerHTML = 'R$ ' + soma.toLocaleString('pt-BR', {maximumFractionDigits:2});
         }
 
         function aplicarFiltros() {
@@ -480,7 +497,6 @@
             const status = document.getElementById('filterStatus').value;
             const filterSituacao = document.getElementById('filterRetorno').value;
             const busca = document.getElementById('searchBox').value.toLowerCase();
-
             let filtrados = dados.filter(item => {
                 if (resp && item.responsavel !== resp) return false;
                 if (empresa && item.empresa !== empresa) return false;
@@ -494,8 +510,7 @@
                 if (busca && !item.grupo.toLowerCase().includes(busca) && !item.cota.toLowerCase().includes(busca) && !item.observacao.toLowerCase().includes(busca) && !item.acontecimentos.toLowerCase().includes(busca)) return false;
                 return true;
             });
-
-            filtrados.sort((a, b) => {
+            filtrados.sort((a,b) => {
                 const pa = getPrioridadeRetorno(a.data_retorno);
                 const pb = getPrioridadeRetorno(b.data_retorno);
                 if (pa !== pb) return pa - pb;
@@ -523,91 +538,44 @@
             aplicarFiltros();
         }
 
-        // ==================== MODAL (CRUD) ====================
+        // Modal de itens
         function renderizarItensTabelaModal() {
             const tbody = document.getElementById('itensBody');
             tbody.innerHTML = '';
             itensArray.forEach((item, idx) => {
                 const row = tbody.insertRow();
-                // Grupo
-                const cellGrupo = row.insertCell(0);
-                const inputGrupo = document.createElement('input');
-                inputGrupo.type = 'text';
-                inputGrupo.value = item.grupo || '';
-                inputGrupo.placeholder = 'Grupo';
-                inputGrupo.addEventListener('change', (e) => itensArray[idx].grupo = e.target.value);
-                cellGrupo.appendChild(inputGrupo);
-                // Cota
-                const cellCota = row.insertCell(1);
-                const inputCota = document.createElement('input');
-                inputCota.type = 'text';
-                inputCota.value = item.cota || '';
-                inputCota.placeholder = 'Nº';
-                inputCota.addEventListener('change', (e) => itensArray[idx].cota = e.target.value);
-                cellCota.appendChild(inputCota);
-                // Vencimento
-                const cellVenc = row.insertCell(2);
-                const inputVenc = document.createElement('input');
-                inputVenc.type = 'date';
-                inputVenc.value = item.data_venc || '';
-                inputVenc.addEventListener('change', (e) => itensArray[idx].data_venc = e.target.value);
-                cellVenc.appendChild(inputVenc);
-                // Valor
-                const cellValor = row.insertCell(3);
-                const inputValor = document.createElement('input');
-                inputValor.type = 'number';
-                inputValor.step = '0.01';
-                inputValor.value = item.valor || 0;
-                inputValor.addEventListener('change', (e) => itensArray[idx].valor = parseFloat(e.target.value) || 0);
-                cellValor.appendChild(inputValor);
-                // Status
-                const cellStatus = row.insertCell(4);
+                const addField = (tag, type, value, placeholder, onChange) => {
+                    const cell = row.insertCell();
+                    const input = document.createElement(tag);
+                    if (type) input.type = type;
+                    input.value = value || '';
+                    if (placeholder) input.placeholder = placeholder;
+                    if (onChange) input.addEventListener('change', onChange);
+                    cell.appendChild(input);
+                    return input;
+                };
+                addField('input', 'text', item.grupo, 'Grupo', (e) => itensArray[idx].grupo = e.target.value);
+                addField('input', 'text', item.cota, 'Nº', (e) => itensArray[idx].cota = e.target.value);
+                addField('input', 'date', item.data_venc, '', (e) => itensArray[idx].data_venc = e.target.value);
+                addField('input', 'number', item.valor, 'Valor', (e) => itensArray[idx].valor = parseFloat(e.target.value) || 0);
                 const selectStatus = document.createElement('select');
-                selectStatus.innerHTML = `<option ${item.status === 'Ativo' ? 'selected' : ''}>Ativo</option><option ${item.status === 'Contemplado' ? 'selected' : ''}>Contemplado</option><option ${item.status === 'Pago' ? 'selected' : ''}>Pago</option>`;
+                selectStatus.innerHTML = `<option ${item.status === 'Ativo' ? 'selected' : ''}>Ativo</option><option ${item.status === 'Pago' ? 'selected' : ''}>Pago</option><option ${item.status === 'Contemplado' ? 'selected' : ''}>Contemplado</option>`;
                 selectStatus.addEventListener('change', (e) => itensArray[idx].status = e.target.value);
-                cellStatus.appendChild(selectStatus);
-                // Canal
-                const cellCanal = row.insertCell(5);
-                const inputCanal = document.createElement('input');
-                inputCanal.type = 'text';
-                inputCanal.value = item.canal || '';
-                inputCanal.placeholder = 'Canal';
-                inputCanal.addEventListener('change', (e) => itensArray[idx].canal = e.target.value);
-                cellCanal.appendChild(inputCanal);
-                // Data Retorno
-                const cellRetorno = row.insertCell(6);
-                const inputRetorno = document.createElement('input');
-                inputRetorno.type = 'date';
-                inputRetorno.value = item.data_retorno || '';
-                inputRetorno.required = true;
-                inputRetorno.addEventListener('change', (e) => itensArray[idx].data_retorno = e.target.value);
-                cellRetorno.appendChild(inputRetorno);
-                // Observação
-                const cellObs = row.insertCell(7);
-                const inputObs = document.createElement('input');
-                inputObs.type = 'text';
-                inputObs.value = item.observacao || '';
-                inputObs.placeholder = 'Observação';
-                inputObs.addEventListener('change', (e) => itensArray[idx].observacao = e.target.value);
-                cellObs.appendChild(inputObs);
-                // Acontecimentos
-                const cellAcontec = row.insertCell(8);
+                row.insertCell().appendChild(selectStatus);
+                addField('input', 'text', item.canal, 'Canal', (e) => itensArray[idx].canal = e.target.value);
+                addField('input', 'date', item.data_retorno, '', (e) => itensArray[idx].data_retorno = e.target.value);
+                addField('input', 'text', item.observacao, 'Observação', (e) => itensArray[idx].observacao = e.target.value);
                 const textarea = document.createElement('textarea');
                 textarea.value = item.acontecimentos || '';
                 textarea.placeholder = 'Registre aqui...';
                 textarea.rows = 2;
                 textarea.addEventListener('change', (e) => itensArray[idx].acontecimentos = e.target.value);
-                cellAcontec.appendChild(textarea);
-                // Remover
-                const cellAction = row.insertCell(9);
+                row.insertCell().appendChild(textarea);
                 const btnRemove = document.createElement('button');
                 btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
                 btnRemove.className = 'btn-remove-item';
-                btnRemove.onclick = () => {
-                    itensArray.splice(idx, 1);
-                    renderizarItensTabelaModal();
-                };
-                cellAction.appendChild(btnRemove);
+                btnRemove.onclick = () => { itensArray.splice(idx, 1); renderizarItensTabelaModal(); };
+                row.insertCell().appendChild(btnRemove);
             });
             if (itensArray.length === 0) adicionarItemVazioModal();
         }
@@ -629,60 +597,43 @@
         }
 
         window.editarRegistro = function(id) {
-            const registro = dados.find(r => r.id === id);
-            if (!registro) return;
+            const reg = dados.find(r => r.id === id);
+            if (!reg) return;
             currentEditId = id;
             document.getElementById('modalTitle').innerText = '✏️ Editar registro';
-            document.getElementById('editResponsavel').value = registro.responsavel;
-            document.getElementById('editEmpresa').value = registro.empresa;
-            document.getElementById('editAdministradora').value = registro.administradora || '';
+            document.getElementById('editResponsavel').value = reg.responsavel;
+            document.getElementById('editEmpresa').value = reg.empresa;
+            document.getElementById('editAdministradora').value = reg.administradora || '';
             itensArray = [{
-                grupo: registro.grupo,
-                cota: registro.cota,
-                data_venc: registro.data_venc,
-                valor: registro.valor,
-                status: registro.status,
-                canal: registro.canal,
-                data_retorno: registro.data_retorno || '',
-                observacao: registro.observacao || '',
-                acontecimentos: registro.acontecimentos || ''
+                grupo: reg.grupo,
+                cota: reg.cota,
+                data_venc: reg.data_venc,
+                valor: reg.valor,
+                status: reg.status,
+                canal: reg.canal,
+                data_retorno: reg.data_retorno || '',
+                observacao: reg.observacao || '',
+                acontecimentos: reg.acontecimentos || ''
             }];
             renderizarItensTabelaModal();
             document.getElementById('modalEditar').style.display = 'flex';
         };
 
         function salvarEdicao() {
-            const responsavel = document.getElementById('editResponsavel').value.trim();
-            const empresa = document.getElementById('editEmpresa').value.trim();
-            const administradora = document.getElementById('editAdministradora').value.trim();
-            if (!responsavel || !empresa) {
-                alert("Preencha Responsável e Empresa.");
-                return;
-            }
-            const itensValidos = itensArray.filter(item => item.grupo && item.cota && item.data_venc && item.data_retorno);
-            if (itensValidos.length === 0) {
-                alert("Adicione pelo menos um item com Grupo, Cota, Data de Vencimento e Data de Retorno.");
-                return;
-            }
-
-            if (currentEditId) {
-                dados = dados.filter(r => r.id !== currentEditId);
-            }
+            const resp = document.getElementById('editResponsavel').value.trim();
+            const emp = document.getElementById('editEmpresa').value.trim();
+            const adm = document.getElementById('editAdministradora').value.trim();
+            if (!resp || !emp) { alert("Preencha Responsável e Empresa."); return; }
+            const itensValidos = itensArray.filter(i => i.grupo && i.cota && i.data_venc && i.data_retorno);
+            if (itensValidos.length === 0) { alert("Adicione pelo menos um item completo."); return; }
+            if (currentEditId) dados = dados.filter(r => r.id !== currentEditId);
             for (let item of itensValidos) {
-                const novoId = Date.now() + Math.random();
                 dados.push({
-                    id: novoId,
-                    responsavel: responsavel,
-                    empresa: empresa,
-                    administradora: administradora,
-                    grupo: item.grupo,
-                    cota: item.cota,
-                    data_venc: item.data_venc,
-                    valor: item.valor,
-                    status: item.status,
-                    canal: item.canal,
-                    data_retorno: item.data_retorno,
-                    observacao: item.observacao || '',
+                    id: Date.now() + Math.random(),
+                    responsavel: resp, empresa: emp, administradora: adm,
+                    grupo: item.grupo, cota: item.cota, data_venc: item.data_venc,
+                    valor: item.valor, status: item.status, canal: item.canal,
+                    data_retorno: item.data_retorno, observacao: item.observacao || '',
                     acontecimentos: item.acontecimentos || ''
                 });
             }
@@ -693,7 +644,7 @@
         }
 
         window.excluirRegistro = function(id) {
-            if (confirm('Excluir permanentemente este registro?')) {
+            if (confirm('Excluir permanentemente?')) {
                 dados = dados.filter(r => r.id !== id);
                 salvarLocal();
                 atualizarFiltrosSelect();
@@ -706,7 +657,6 @@
             itensArray = [];
         }
 
-        // Inicialização
         function init() {
             carregarDados();
             atualizarFiltrosSelect();
@@ -718,10 +668,14 @@
             document.getElementById('btnFiltrar').addEventListener('click', aplicarFiltros);
             document.getElementById('btnLimpar').addEventListener('click', limparFiltros);
             document.getElementById('btnBackupManual').addEventListener('click', fazerBackup);
+            document.getElementById('btnRestoreBackup').addEventListener('click', () => document.getElementById('restoreFileInput').click());
+            document.getElementById('restoreFileInput').addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) restaurarBackup(e.target.files[0]);
+                e.target.value = '';
+            });
             document.getElementById('searchBox').addEventListener('keypress', (e) => { if (e.key === 'Enter') aplicarFiltros(); });
             window.addEventListener('click', (e) => { if (e.target === document.getElementById('modalEditar')) fecharModal(); });
         }
-
         init();
     })();
 </script>
