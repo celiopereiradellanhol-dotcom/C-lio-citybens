@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <title>CityBens | Gestão Financeira com Backup</title>
+    <title>CityBens | Gestão Financeira</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -15,10 +14,6 @@
             color: #eef2ff;
             padding: 24px;
         }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #1e1f25; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb { background: #2c3e66; border-radius: 10px; }
-
         .container { max-width: 1600px; margin: 0 auto; }
         .header {
             display: flex;
@@ -87,7 +82,6 @@
             font-size: 14px;
             outline: none;
         }
-        select:focus, input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
         .btn {
             border: none;
             border-radius: 12px;
@@ -107,8 +101,6 @@
         .btn-add:hover { background: #059669; }
         .btn-backup { background: #3b82f6; color: white; }
         .btn-backup:hover { background: #2563eb; }
-        .btn-restore { background: #8b5cf6; color: white; }
-        .btn-restore:hover { background: #7c3aed; }
 
         .table-wrapper {
             background: #0f1117;
@@ -186,7 +178,7 @@
         .modal-content {
             background: #111318;
             border-radius: 32px;
-            max-width: 1200px;
+            max-width: 1100px;
             width: 95%;
             max-height: 90vh;
             overflow-y: auto;
@@ -230,9 +222,6 @@
         .modal-buttons { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
         .empty-state { text-align: center; padding: 60px 20px; color: #6b7280; }
         footer { text-align: center; margin-top: 32px; font-size: 12px; color: #4b5563; }
-
-        #restoreFileInput { display: none; }
-
         @media (max-width: 768px) {
             body { padding: 16px; }
             .form-grid { grid-template-columns: 1fr; }
@@ -252,7 +241,7 @@
             <div class="logo-icon">CB</div>
             <div class="logo-text">
                 <h1>CityBens</h1>
-                <p>Fila de Atendimento • Backup Manual e Restauração</p>
+                <p>Fila de Atendimento • Backup Manual</p>
             </div>
         </div>
         <div class="header-stats">
@@ -268,15 +257,13 @@
             <div class="filter-group"><label>Empresa</label><select id="filterEmpresa"><option value="">Todos</option></select></div>
             <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Contemplado</option><option>Pago</option></select></div>
             <div class="filter-group"><label>Situação Retorno</label><select id="filterRetorno"><option value="">Todos</option><option>🔴 Atrasado</option><option>🟡 Hoje</option><option>🟢 Futuro</option></select></div>
-            <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, obs, acontecimentos..."></div>
+            <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, obs..."></div>
             <button class="btn btn-primary" id="btnFiltrar"><i class="fas fa-search"></i> Filtrar</button>
             <button class="btn btn-outline" id="btnLimpar"><i class="fas fa-undo-alt"></i> Limpar</button>
         </div>
         <div>
             <button class="btn btn-backup" id="btnBackupManual"><i class="fas fa-download"></i> Backup agora</button>
-            <button class="btn btn-restore" id="btnRestoreBackup"><i class="fas fa-upload"></i> Restaurar backup</button>
             <button class="btn btn-add" id="btnNovoRegistro"><i class="fas fa-plus"></i> Novo registro</button>
-            <input type="file" id="restoreFileInput" accept=".json">
         </div>
     </div>
 
@@ -289,7 +276,7 @@
         </table>
         <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
     </div>
-    <footer>© 2026 CityBens — Backup manual. Use "Restaurar backup" para recuperar dados salvos anteriormente.</footer>
+    <footer>© 2026 CityBens — Backup manual. Use o botão azul para salvar seus dados.</footer>
 </div>
 
 <!-- MODAL DE CADASTRO/EDIÇÃO -->
@@ -304,7 +291,7 @@
         <div class="itens-section">
             <div class="itens-header">
                 <h4><i class="fas fa-list"></i> Itens (grupo/cota)</h4>
-                <button type="button" class="btn btn-outline" id="btnAdicionarItem"><i class="fas fa-plus"></i> Adicionar cota</button>
+                <button type="button" class="btn btn-outline" id="btnAdicionarItem" style="padding: 4px 12px;"><i class="fas fa-plus"></i> Adicionar cota</button>
             </div>
             <div style="overflow-x: auto;">
                 <table class="itens-table" id="itensTable">
@@ -324,150 +311,75 @@
 
 <script>
     (function() {
-        console.log("Inicializando CityBens...");
-        // ==================== SISTEMA PRINCIPAL ====================
+        // Dados principais
         let dados = [];
         let currentEditId = null;
         let itensArray = [];
 
         // Salvar no localStorage
         function salvarLocal() {
-            try {
-                localStorage.setItem("citybens_dados", JSON.stringify(dados));
-                console.log("Dados salvos com sucesso.");
-            } catch(e) { console.error("Erro ao salvar:", e); alert("Erro ao salvar dados. Verifique o espaço disponível."); }
+            localStorage.setItem("citybens_dados", JSON.stringify(dados));
         }
 
-        // Carregar dados com validação
+        // Carregar dados
         function carregarDados() {
-            try {
-                const saved = localStorage.getItem("citybens_dados");
-                if (saved) {
-                    dados = JSON.parse(saved);
-                    if (!Array.isArray(dados)) dados = [];
-                    dados = dados.map(reg => {
-                        return {
-                            id: reg.id || Date.now() + Math.random(),
-                            responsavel: reg.responsavel || "",
-                            empresa: reg.empresa || "",
-                            administradora: reg.administradora || "",
-                            grupo: reg.grupo || "",
-                            cota: reg.cota || "",
-                            data_venc: reg.data_venc || "",
-                            valor: typeof reg.valor === 'number' ? reg.valor : 0,
-                            status: reg.status || "Ativo",
-                            canal: reg.canal || "",
-                            data_retorno: reg.data_retorno || "",
-                            observacao: reg.observacao || "",
-                            acontecimentos: reg.acontecimentos || ""
-                        };
-                    });
-                } else {
-                    dados = [];
-                }
-                console.log(`Dados carregados: ${dados.length} registros.`);
-            } catch(e) {
-                console.error("Erro ao carregar dados:", e);
+            const saved = localStorage.getItem("citybens_dados");
+            if (saved) {
+                dados = JSON.parse(saved);
+                dados = dados.map(reg => ({
+                    id: reg.id,
+                    responsavel: reg.responsavel || "",
+                    empresa: reg.empresa || "",
+                    administradora: reg.administradora || "",
+                    grupo: reg.grupo || "",
+                    cota: reg.cota || "",
+                    data_venc: reg.data_venc || "",
+                    valor: reg.valor || 0,
+                    status: reg.status || "Ativo",
+                    canal: reg.canal || "",
+                    data_retorno: reg.data_retorno || "",
+                    observacao: reg.observacao || "",
+                    acontecimentos: reg.acontecimentos || ""
+                }));
+            } else {
                 dados = [];
             }
         }
 
-        // ==================== BACKUP (EXPORTAR) ====================
+        // Backup manual
         function fazerBackup() {
-            try {
-                const data = new Date();
-                const ano = data.getFullYear();
-                const mes = String(data.getMonth() + 1).padStart(2, '0');
-                const dia = String(data.getDate()).padStart(2, '0');
-                const hora = String(data.getHours()).padStart(2, '0');
-                const minuto = String(data.getMinutes()).padStart(2, '0');
-                const segundo = String(data.getSeconds()).padStart(2, '0');
-                const nomeArquivo = `citybens_backup_${ano}-${mes}-${dia}_${hora}-${minuto}-${segundo}.json`;
-                
-                const dadosBackup = {
-                    data_exportacao: data.toISOString(),
-                    versao: "1.0",
-                    registros: dados
-                };
-                
-                const jsonStr = JSON.stringify(dadosBackup, null, 2);
-                const blob = new Blob([jsonStr], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = nomeArquivo;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                console.log(`Backup manual realizado: ${nomeArquivo}`);
-                const btn = document.getElementById('btnBackupManual');
-                if (btn) {
-                    const originalHtml = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-check"></i> Backup salvo!';
-                    setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
-                }
-            } catch(e) {
-                console.error("Erro no backup:", e);
-                alert("Erro ao gerar backup.");
-            }
+            const data = new Date();
+            const ano = data.getFullYear();
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const dia = String(data.getDate()).padStart(2, '0');
+            const hora = String(data.getHours()).padStart(2, '0');
+            const minuto = String(data.getMinutes()).padStart(2, '0');
+            const segundo = String(data.getSeconds()).padStart(2, '0');
+            const nomeArquivo = `citybens_backup_${ano}-${mes}-${dia}_${hora}-${minuto}-${segundo}.json`;
+            
+            const dadosBackup = {
+                data_exportacao: data.toISOString(),
+                versao: "1.0",
+                registros: dados
+            };
+            const jsonStr = JSON.stringify(dadosBackup, null, 2);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nomeArquivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const btn = document.getElementById('btnBackupManual');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Backup salvo!';
+            setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
         }
 
-        // ==================== RESTAURAR (IMPORTAR) ====================
-        function restaurarBackup(arquivo) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const conteudo = JSON.parse(e.target.result);
-                    let registrosRestaurados = [];
-                    
-                    if (conteudo.registros && Array.isArray(conteudo.registros)) {
-                        registrosRestaurados = conteudo.registros;
-                    } else if (Array.isArray(conteudo)) {
-                        registrosRestaurados = conteudo;
-                    } else {
-                        throw new Error("Formato de arquivo inválido");
-                    }
-                    
-                    if (!registrosRestaurados.length) {
-                        throw new Error("Nenhum registro encontrado no arquivo.");
-                    }
-                    
-                    if (confirm(`Deseja restaurar ${registrosRestaurados.length} registros? Os dados atuais serão SUBSTITUÍDOS.`)) {
-                        dados = registrosRestaurados.map(reg => ({
-                            id: reg.id || Date.now() + Math.random(),
-                            responsavel: reg.responsavel || "",
-                            empresa: reg.empresa || "",
-                            administradora: reg.administradora || "",
-                            grupo: reg.grupo || "",
-                            cota: reg.cota || "",
-                            data_venc: reg.data_venc || "",
-                            valor: typeof reg.valor === 'number' ? reg.valor : 0,
-                            status: reg.status || "Ativo",
-                            canal: reg.canal || "",
-                            data_retorno: reg.data_retorno || "",
-                            observacao: reg.observacao || "",
-                            acontecimentos: reg.acontecimentos || ""
-                        }));
-                        salvarLocal();
-                        atualizarFiltrosSelect();
-                        aplicarFiltros();
-                        alert("Backup restaurado com sucesso!");
-                        location.reload();
-                    }
-                } catch (err) {
-                    console.error("Erro ao restaurar backup:", err);
-                    alert("Falha ao restaurar. O arquivo não é um backup válido do CityBens.");
-                }
-            };
-            reader.onerror = function() {
-                alert("Erro ao ler o arquivo.");
-            };
-            reader.readAsText(arquivo);
-        }
-
-        // ==================== FUNÇÕES DE APOIO ====================
+        // Funções auxiliares
         function formatarData(dataStr) {
             if (!dataStr) return "";
             const partes = dataStr.split("-");
@@ -510,11 +422,10 @@
             });
         }
 
-        // ==================== RENDERIZAÇÃO DA TABELA ====================
+        // Renderizar tabela
         function renderizarTabela(filtrados) {
             const tbody = document.getElementById('tableBody');
             const emptyDiv = document.getElementById('emptyState');
-            if (!tbody || !emptyDiv) return;
             if (!filtrados.length) {
                 tbody.innerHTML = '';
                 emptyDiv.style.display = 'block';
@@ -591,7 +502,6 @@
                 if (a.data_retorno && b.data_retorno) return a.data_retorno.localeCompare(b.data_retorno);
                 return 0;
             });
-
             renderizarTabela(filtrados);
         }
 
@@ -600,8 +510,8 @@
             const empresas = [...new Set(dados.map(d => d.empresa))];
             const selectResp = document.getElementById('filterResponsavel');
             const selectEmp = document.getElementById('filterEmpresa');
-            if (selectResp) selectResp.innerHTML = '<option value="">Todos</option>' + responsaveis.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
-            if (selectEmp) selectEmp.innerHTML = '<option value="">Todos</option>' + empresas.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join('');
+            selectResp.innerHTML = '<option value="">Todos</option>' + responsaveis.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+            selectEmp.innerHTML = '<option value="">Todos</option>' + empresas.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join('');
         }
 
         function limparFiltros() {
@@ -613,14 +523,12 @@
             aplicarFiltros();
         }
 
-        // ==================== MODAL - ITENS DINÂMICOS ====================
-        function renderizarItensTabela() {
+        // ==================== MODAL (CRUD) ====================
+        function renderizarItensTabelaModal() {
             const tbody = document.getElementById('itensBody');
-            if (!tbody) return;
             tbody.innerHTML = '';
             itensArray.forEach((item, idx) => {
                 const row = tbody.insertRow();
-                
                 // Grupo
                 const cellGrupo = row.insertCell(0);
                 const inputGrupo = document.createElement('input');
@@ -629,7 +537,6 @@
                 inputGrupo.placeholder = 'Grupo';
                 inputGrupo.addEventListener('change', (e) => itensArray[idx].grupo = e.target.value);
                 cellGrupo.appendChild(inputGrupo);
-                
                 // Cota
                 const cellCota = row.insertCell(1);
                 const inputCota = document.createElement('input');
@@ -638,7 +545,6 @@
                 inputCota.placeholder = 'Nº';
                 inputCota.addEventListener('change', (e) => itensArray[idx].cota = e.target.value);
                 cellCota.appendChild(inputCota);
-                
                 // Vencimento
                 const cellVenc = row.insertCell(2);
                 const inputVenc = document.createElement('input');
@@ -646,7 +552,6 @@
                 inputVenc.value = item.data_venc || '';
                 inputVenc.addEventListener('change', (e) => itensArray[idx].data_venc = e.target.value);
                 cellVenc.appendChild(inputVenc);
-                
                 // Valor
                 const cellValor = row.insertCell(3);
                 const inputValor = document.createElement('input');
@@ -655,16 +560,12 @@
                 inputValor.value = item.valor || 0;
                 inputValor.addEventListener('change', (e) => itensArray[idx].valor = parseFloat(e.target.value) || 0);
                 cellValor.appendChild(inputValor);
-                
                 // Status
                 const cellStatus = row.insertCell(4);
                 const selectStatus = document.createElement('select');
-                selectStatus.innerHTML = `<option ${item.status === 'Ativo' ? 'selected' : ''}>Ativo</option>
-                                          <option ${item.status === 'Contemplado' ? 'selected' : ''}>Contemplado</option>
-                                          <option ${item.status === 'Pago' ? 'selected' : ''}>Pago</option>`;
+                selectStatus.innerHTML = `<option ${item.status === 'Ativo' ? 'selected' : ''}>Ativo</option><option ${item.status === 'Contemplado' ? 'selected' : ''}>Contemplado</option><option ${item.status === 'Pago' ? 'selected' : ''}>Pago</option>`;
                 selectStatus.addEventListener('change', (e) => itensArray[idx].status = e.target.value);
                 cellStatus.appendChild(selectStatus);
-                
                 // Canal
                 const cellCanal = row.insertCell(5);
                 const inputCanal = document.createElement('input');
@@ -673,7 +574,6 @@
                 inputCanal.placeholder = 'Canal';
                 inputCanal.addEventListener('change', (e) => itensArray[idx].canal = e.target.value);
                 cellCanal.appendChild(inputCanal);
-                
                 // Data Retorno
                 const cellRetorno = row.insertCell(6);
                 const inputRetorno = document.createElement('input');
@@ -682,7 +582,6 @@
                 inputRetorno.required = true;
                 inputRetorno.addEventListener('change', (e) => itensArray[idx].data_retorno = e.target.value);
                 cellRetorno.appendChild(inputRetorno);
-                
                 // Observação
                 const cellObs = row.insertCell(7);
                 const inputObs = document.createElement('input');
@@ -691,7 +590,6 @@
                 inputObs.placeholder = 'Observação';
                 inputObs.addEventListener('change', (e) => itensArray[idx].observacao = e.target.value);
                 cellObs.appendChild(inputObs);
-                
                 // Acontecimentos
                 const cellAcontec = row.insertCell(8);
                 const textarea = document.createElement('textarea');
@@ -700,7 +598,6 @@
                 textarea.rows = 2;
                 textarea.addEventListener('change', (e) => itensArray[idx].acontecimentos = e.target.value);
                 cellAcontec.appendChild(textarea);
-                
                 // Remover
                 const cellAction = row.insertCell(9);
                 const btnRemove = document.createElement('button');
@@ -708,28 +605,26 @@
                 btnRemove.className = 'btn-remove-item';
                 btnRemove.onclick = () => {
                     itensArray.splice(idx, 1);
-                    renderizarItensTabela();
+                    renderizarItensTabelaModal();
                 };
                 cellAction.appendChild(btnRemove);
             });
-            if (itensArray.length === 0) adicionarItemVazio();
+            if (itensArray.length === 0) adicionarItemVazioModal();
         }
 
-        function adicionarItemVazio() {
+        function adicionarItemVazioModal() {
             itensArray.push({ grupo: '', cota: '', data_venc: '', valor: 0, status: 'Ativo', canal: '', data_retorno: '', observacao: '', acontecimentos: '' });
-            renderizarItensTabela();
+            renderizarItensTabelaModal();
         }
 
         function novoRegistro() {
             currentEditId = null;
-            const modalTitle = document.getElementById('modalTitle');
-            if (modalTitle) modalTitle.innerText = '➕ Novo registro (múltiplas cotas)';
+            document.getElementById('modalTitle').innerText = '➕ Novo registro (múltiplas cotas)';
             document.getElementById('editResponsavel').value = '';
             document.getElementById('editEmpresa').value = '';
             document.getElementById('editAdministradora').value = '';
             itensArray = [];
-            adicionarItemVazio();
-            renderizarItensTabela();
+            adicionarItemVazioModal();
             document.getElementById('modalEditar').style.display = 'flex';
         }
 
@@ -752,7 +647,7 @@
                 observacao: registro.observacao || '',
                 acontecimentos: registro.acontecimentos || ''
             }];
-            renderizarItensTabela();
+            renderizarItensTabelaModal();
             document.getElementById('modalEditar').style.display = 'flex';
         };
 
@@ -811,41 +706,23 @@
             itensArray = [];
         }
 
-        // ==================== INICIALIZAÇÃO ====================
+        // Inicialização
         function init() {
             carregarDados();
             atualizarFiltrosSelect();
             aplicarFiltros();
-            console.log("Sistema inicializado com sucesso.");
+            document.getElementById('btnNovoRegistro').addEventListener('click', novoRegistro);
+            document.getElementById('btnCancelarModal').addEventListener('click', fecharModal);
+            document.getElementById('btnSalvarModal').addEventListener('click', salvarEdicao);
+            document.getElementById('btnAdicionarItem').addEventListener('click', adicionarItemVazioModal);
+            document.getElementById('btnFiltrar').addEventListener('click', aplicarFiltros);
+            document.getElementById('btnLimpar').addEventListener('click', limparFiltros);
+            document.getElementById('btnBackupManual').addEventListener('click', fazerBackup);
+            document.getElementById('searchBox').addEventListener('keypress', (e) => { if (e.key === 'Enter') aplicarFiltros(); });
+            window.addEventListener('click', (e) => { if (e.target === document.getElementById('modalEditar')) fecharModal(); });
         }
 
-        // Aguarda o DOM estar pronto
-        document.addEventListener('DOMContentLoaded', () => {
-            init();
-            // Eventos
-            document.getElementById('btnNovoRegistro')?.addEventListener('click', novoRegistro);
-            document.getElementById('btnCancelarModal')?.addEventListener('click', fecharModal);
-            document.getElementById('btnSalvarModal')?.addEventListener('click', salvarEdicao);
-            document.getElementById('btnAdicionarItem')?.addEventListener('click', adicionarItemVazio);
-            document.getElementById('btnFiltrar')?.addEventListener('click', aplicarFiltros);
-            document.getElementById('btnLimpar')?.addEventListener('click', limparFiltros);
-            document.getElementById('btnBackupManual')?.addEventListener('click', fazerBackup);
-            
-            const btnRestore = document.getElementById('btnRestoreBackup');
-            const fileInput = document.getElementById('restoreFileInput');
-            if (btnRestore && fileInput) {
-                btnRestore.addEventListener('click', () => fileInput.click());
-                fileInput.addEventListener('change', (event) => {
-                    if (event.target.files && event.target.files[0]) {
-                        restaurarBackup(event.target.files[0]);
-                        fileInput.value = '';
-                    }
-                });
-            }
-            
-            document.getElementById('searchBox')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') aplicarFiltros(); });
-            window.addEventListener('click', (e) => { if (e.target === document.getElementById('modalEditar')) fecharModal(); });
-        });
+        init();
     })();
 </script>
 </body>
