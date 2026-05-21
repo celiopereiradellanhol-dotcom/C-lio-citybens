@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CityBens | CRM de Boletos Profissional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass-effect { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
+        .smooth-transition { transition: all 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-ativo { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-pago { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .status-contemplado { background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .retorno-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .retorno-atrasado { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .retorno-hoje { background: rgba(250, 204, 21, 0.1); color: #facc15; }
+        .retorno-futuro { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+        .table-row-hover:hover { background-color: rgba(102, 126, 234, 0.05); }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #1a1a2e; border-radius: 20px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 32px; border: 1px solid rgba(255,255,255,0.1); }
+        .input-field { background: #16213e; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 16px; color: #fff; font-size: 14px; width: 100%; transition: all 0.3s; }
+        .input-field:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .btn-base { padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; transition: all 0.3s; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
+        .action-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #999; transition: all 0.3s; }
+        .action-icon:hover { background: rgba(102, 126, 234, 0.2); color: #667eea; }
+        .stat-card { background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 16px; padding: 24px; }
+        
+        /* Ajuste para tabela de itens no modal */
+        .itens-table th { padding: 8px; font-size: 11px; color: #94a3b8; text-transform: uppercase; text-align: left; }
+        .itens-table td { padding: 4px; vertical-align: top; }
+        .textarea-field { background: #16213e; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; color: #fff; font-size: 12px; width: 100%; resize: vertical; min-height: 40px; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-[#0f0f1e] via-[#1a1a2e] to-[#16213e] text-white min-h-screen">
+    
+    <div class="container mx-auto px-4 py-8">
+        <!-- HEADER -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between flex-wrap gap-6">
+                <div class="flex items-center gap-4">
+                    <div class="gradient-primary p-4 rounded-lg">
+                        <i class="fas fa-receipt text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">CityBens</h1>
+                        <p class="text-gray-400 text-sm">CRM Profissional de Boletos</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-4 flex-1 max-w-2xl">
+                    <div class="stat-card hover-lift">
+                        <p class="text-gray-400 text-xs uppercase tracking-wider mb-2">Total de Registros</p>
+                        <p class="text-3xl font-bold text-purple-400" id="totalRegistros">0</p>
+                    </div>
+                    <div class="stat-card hover-lift">
+                        <p class="text-gray-400 text-xs uppercase tracking-wider mb-2">Retornos Críticos</p>
+                        <p class="text-3xl font-bold text-red-400" id="totalAlertas">0</p>
+                    </div>
+                    <div class="stat-card hover-lift">
+                        <p class="text-gray-400 text-xs uppercase tracking-wider mb-2">Valor em Carteira</p>
+                        <p class="text-2xl font-bold text-green-400" id="valorTotal">R$ 0</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- FILTERS & ACTIONS -->
+        <section class="glass-effect border border-gray-700 rounded-xl p-6 mb-8">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Responsável</label>
+                    <select id="filterResponsavel" class="input-field"><option value="">Todos</option></select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Empresa</label>
+                    <select id="filterEmpresa" class="input-field"><option value="">Todos</option></select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Status</label>
+                    <select id="filterStatus" class="input-field">
+                        <option value="">Todos</option>
+                        <option>Ativo</option>
+                        <option>Pago</option>
+                        <option>Contemplado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Retorno</label>
+                    <select id="filterRetorno" class="input-field">
+                        <option value="">Todos</option>
+                        <option>🔴 Atrasado</option>
+                        <option>🟡 Hoje</option>
+                        <option>🟢 Futuro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Buscar</label>
+                    <input type="text" id="searchBox" placeholder="Grupo, cota, obs..." class="input-field">
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+                <button id="btnFiltrar" class="btn-base btn-primary"><i class="fas fa-search mr-2"></i>Filtrar</button>
+                <button id="btnLimpar" class="btn-base btn-secondary"><i class="fas fa-undo mr-2"></i>Limpar</button>
+                <button id="btnNovoRegistro" class="btn-base btn-success ml-auto"><i class="fas fa-plus mr-2"></i>Novo Registro</button>
+                <button id="btnBackupManual" class="btn-base btn-secondary"><i class="fas fa-download mr-2"></i>Backup</button>
+                <button id="btnRestoreBackup" class="btn-base btn-secondary"><i class="fas fa-upload mr-2"></i>Restaurar</button>
+                <input type="file" id="restoreFileInput" accept=".json" style="display: none;">
+            </div>
+        </section>
+
+        <!-- TABLE -->
+        <section class="glass-effect border border-gray-700 rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-700 bg-gradient-to-r from-purple-900/20 to-pink-900/20">
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Responsável</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Empresa</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Grupo</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Cota</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Vencimento</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Valor</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Retorno</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-state-icon"><i class="fas fa-inbox"></i></div>
+                <p class="text-gray-400">Nenhum registro encontrado</p>
+            </div>
+        </section>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p>© 2026 CityBens — CRM Profissional de Boletos</p>
+        </footer>
+    </div>
+
+    <!-- MODAL: VISUALIZAR DETALHES -->
+    <div id="modalVisualizar" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold"><i class="fas fa-eye mr-3 text-purple-400"></i>Detalhes do Registro</h2>
+                <button onclick="fecharVisualizacao()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div id="visualizarConteudo" class="grid grid-cols-2 gap-6"></div>
+            <div class="flex justify-end gap-3 mt-8">
+                <button onclick="fecharVisualizacao()" class="btn-base btn-secondary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NOVO/EDITAR REGISTRO -->
+    <div id="modalEditar" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold" id="modalTitle"><i class="fas fa-plus mr-3 text-green-400"></i>Novo Registro</h2>
+                <button onclick="fecharModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Responsável *</label>
+                    <input type="text" id="editResponsavel" class="input-field" required>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Empresa *</label>
+                    <input type="text" id="editEmpresa" class="input-field" required>
+                </div>
+                <div class="col-span-2">
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-2 block">Administradora</label>
+                    <input type="text" id="editAdministradora" class="input-field">
+                </div>
+            </div>
+
+            <div class="border-t border-gray-700 pt-6 mt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold"><i class="fas fa-list mr-2 text-purple-400"></i>Itens (Cotas)</h3>
+                    <button type="button" id="btnAdicionarItem" class="btn-base btn-secondary text-sm"><i class="fas fa-plus mr-1"></i>Adicionar Cota</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full itens-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Grupo</th>
+                                <th style="width: 80px;">Cota</th>
+                                <th style="width: 130px;">Vencimento</th>
+                                <th style="width: 100px;">Valor</th>
+                                <th style="width: 120px;">Status</th>
+                                <th style="width: 100px;">Canal</th>
+                                <th style="width: 130px;">Retorno *</th>
+                                <th>Observação / Acontecimentos</th>
+                                <th style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itensBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button onclick="fecharModal()" class="btn-base btn-secondary">Cancelar</button>
+                <button id="btnSalvarModal" class="btn-base btn-primary">Salvar Registro</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
