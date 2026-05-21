@@ -4,57 +4,34 @@
     let dados = [];
     let currentEditId = null;
     let itensArray = [];
-    let chartInstances = {}; 
 
-    // ========== AUTENTICAÇÃO (NÍVEL FÁCIL) ==========
+    // ========== AUTENTICAÇÃO ==========
     function verificarAcesso() {
-        const telaLogin = document.getElementById('telaLogin');
-        const conteudoPrincipal = document.getElementById('conteudoPrincipal');
-        const body = document.body;
-        
-        // Verifica se a pessoa já logou antes
-        if (sessionStorage.getItem('citybens_autenticado') === 'true') {
-            liberarAcesso();
-        }
+        const btnEntrar = document.getElementById('btnEntrar');
+        if (!btnEntrar) return;
 
-        // Ação do Botão Entrar
-        document.getElementById('btnEntrar')?.addEventListener('click', tentarLogin);
-        
-        // Permite apertar a tecla "Enter" para fazer o login
-        document.getElementById('loginSenha')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') tentarLogin();
-        });
-
-        // Botão Sair
-        document.getElementById('btnSair')?.addEventListener('click', () => {
-            sessionStorage.removeItem('citybens_autenticado');
-            location.reload(); // Recarrega a página para voltar a tela de login
-        });
-
-        function tentarLogin() {
-            const usuario = document.getElementById('loginUsuario').value.trim();
-            const senha = document.getElementById('loginSenha').value.trim();
+        btnEntrar.addEventListener('click', function() {
+            const usuarioDigitado = document.getElementById('loginUsuario').value.trim();
+            const senhaDigitada = document.getElementById('loginSenha').value.trim();
             const erro = document.getElementById('erroLogin');
 
-            // --- CONFIGURAÇÃO DE USUÁRIO E SENHA AQUI ---
-            if (usuario === "admin" && senha === "12345") {
-                sessionStorage.setItem('citybens_autenticado', 'true');
-                liberarAcesso();
+            // Lista de usuários autorizados
+            const usuariosPermitidos = [
+                { nome: "Thaiane", senha: "102030" },
+                { nome: "Celio", senha: "102030" },
+                { nome: "Leticia", senha: "102030" }
+            ];
+
+            const usuarioValido = usuariosPermitidos.find(
+                user => user.nome.toLowerCase() === usuarioDigitado.toLowerCase() && user.senha === senhaDigitada
+            );
+
+            if (usuarioValido) {
+                document.getElementById('telaLogin').style.display = 'none';
             } else {
                 if (erro) erro.classList.remove('hidden');
             }
-        }
-
-        function liberarAcesso() {
-            if (telaLogin) telaLogin.style.display = 'none';
-            if (conteudoPrincipal) conteudoPrincipal.style.opacity = '1';
-            body.classList.remove('login-ativo');
-            
-            // Somente após o login correto é que os dados são carregados
-            carregarDados(); 
-            atualizarFiltrosSelect(); 
-            aplicarFiltros();
-        }
+        });
     }
 
     // ========== STORAGE ==========
@@ -124,134 +101,49 @@
         return "🟢 Futuro";
     }
 
-    function isVencimentoEstaSemana(data_venc) {
-        if (!data_venc) return false;
-        const hoje = new Date();
-        hoje.setHours(0,0,0,0);
-        
-        const daqui7Dias = new Date(hoje);
-        daqui7Dias.setDate(hoje.getDate() + 7);
-        
-        const partes = data_venc.split('-');
-        if(partes.length !== 3) return false;
-        
-        const venc = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-        return venc >= hoje && venc <= daqui7Dias;
-    }
-
-    // ========== DASHBOARD & CHARTS ==========
-    function atualizarGraficos(filtrados) {
-        if (typeof Chart === 'undefined') return;
-
-        Chart.defaults.color = '#94a3b8';
-        Chart.defaults.font.family = "'Inter', sans-serif";
-
-        const statusData = [0, 0, 0];
-        const retornoData = [0, 0, 0]; 
-        const respDataMap = {};
-        const empDataMap = {};
-
-        filtrados.forEach(f => {
-            const s = String(f.status || "Ativo").toLowerCase();
-            if (s === 'ativo') statusData[0]++;
-            else if (s === 'pago') statusData[1]++;
-            else if (s === 'contemplado') statusData[2]++;
-
-            const sit = getSituacaoRetorno(f.data_retorno);
-            if (sit === 'atrasado') retornoData[0]++;
-            else if (sit === 'hoje') retornoData[1]++;
-            else if (sit === 'futuro') retornoData[2]++;
-
-            const resp = f.responsavel || 'Sem Responsável';
-            respDataMap[resp] = (respDataMap[resp] || 0) + (f.valor || 0);
-
-            const emp = f.empresa || 'Sem Empresa';
-            empDataMap[emp] = (empDataMap[emp] || 0) + 1;
-        });
-
-        function renderChart(id, type, labels, data, bgColors, labelTitle) {
-            const ctx = document.getElementById(id);
-            if (!ctx) return;
-            
-            if (chartInstances[id]) { chartInstances[id].destroy(); }
-
-            chartInstances[id] = new Chart(ctx, {
-                type: type,
-                data: {
-                    labels: labels,
-                    datasets: [{ label: labelTitle, data: data, backgroundColor: bgColors, borderWidth: 1, borderColor: '#1a1a2e', borderRadius: type === 'bar' ? 6 : 0 }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: type === 'pie' ? 'right' : 'none', labels: { color: '#cbd5e1' } } },
-                    scales: type === 'bar' ? {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-                    } : {}
-                }
-            });
-        }
-
-        renderChart('chartStatus', 'pie', ['Ativo', 'Pago', 'Contemplado'], statusData, ['#3b82f6', '#22c55e', '#a855f7'], 'Qtd Status');
-        renderChart('chartRetorno', 'pie', ['Atrasado', 'Hoje', 'Futuro'], retornoData, ['#ef4444', '#facc15', '#22c55e'], 'Qtd Retorno');
-        
-        const respSorted = Object.entries(respDataMap).sort((a,b)=>b[1]-a[1]);
-        renderChart('chartResp', 'bar', respSorted.map(x=>x[0]), respSorted.map(x=>x[1]), '#8b5cf6', 'Valor Acumulado R$');
-
-        const empSorted = Object.entries(empDataMap).sort((a,b)=>b[1]-a[1]);
-        renderChart('chartEmpresa', 'bar', empSorted.map(x=>x[0]), empSorted.map(x=>x[1]), '#ec4899', 'Qtd de Registros');
-    }
-
     // ========== RENDER TABLE ==========
     function renderizarTabela(filtrados) {
         const tbody = document.getElementById('tableBody');
         if (!tbody) return;
 
-        let total = 0, criticos = 0, soma = 0, vencSemana = 0, somaAtraso = 0;
-
         if (!filtrados || filtrados.length === 0) {
             tbody.innerHTML = '';
             document.getElementById('emptyState').style.display = 'block';
-        } else {
-            document.getElementById('emptyState').style.display = 'none';
-            tbody.innerHTML = filtrados.map(item => {
-                const statusClass = `status-${String(item.status).toLowerCase()}`;
-                const sitRetorno = getSituacaoRetorno(item.data_retorno);
-                
-                if (isVencimentoEstaSemana(item.data_venc)) vencSemana++;
-                if (sitRetorno === "atrasado") somaAtraso += (item.valor || 0);
-
-                return `<tr class="table-row-hover border-b border-gray-700">
-                    <td class="px-6 py-4 text-sm whitespace-nowrap">${escapeHtml(item.responsavel)}</td>
-                    <td class="px-6 py-4 text-sm">${escapeHtml(item.empresa)}</td>
-                    <td class="px-6 py-4 text-sm font-semibold">${escapeHtml(item.grupo)}</td>
-                    <td class="px-6 py-4 text-sm">${escapeHtml(item.cota)}</td>
-                    <td class="px-6 py-4 text-sm whitespace-nowrap">${formatarData(item.data_venc)}</td>
-                    <td class="px-6 py-4 text-sm font-semibold text-green-400 whitespace-nowrap">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
-                    <td class="px-6 py-4 text-sm"><span class="status-badge ${statusClass}">${item.status}</span></td>
-                    <td class="px-6 py-4 text-sm whitespace-nowrap"><span class="retorno-badge ${getClasseRetorno(item.data_retorno)}">${getTextoRetorno(item.data_retorno)}</span></td>
-                    <td class="px-6 py-4 text-sm">
-                        <div class="flex gap-2">
-                            <button onclick="window.visualizarRegistro(${item.id})" class="action-icon"><i class="fas fa-eye"></i></button>
-                            <button onclick="window.editarRegistro(${item.id})" class="action-icon"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.excluirRegistro(${item.id})" class="action-icon"><i class="fas fa-trash-alt"></i></button>
-                        </div>
-                    </td>
-                </tr>`;
-            }).join('');
-
-            total = filtrados.length;
-            criticos = filtrados.filter(f => getSituacaoRetorno(f.data_retorno) !== "futuro").length;
-            soma = filtrados.reduce((acc, f) => acc + (f.valor || 0), 0);
+            document.getElementById('totalRegistros').innerText = '0';
+            document.getElementById('totalAlertas').innerText = '0';
+            document.getElementById('valorTotal').innerHTML = 'R$ 0,00';
+            return;
         }
+
+        document.getElementById('emptyState').style.display = 'none';
+        tbody.innerHTML = filtrados.map(item => {
+            const statusClass = `status-${String(item.status).toLowerCase()}`;
+            return `<tr class="table-row-hover border-b border-gray-700">
+                <td class="px-6 py-4 text-sm">${escapeHtml(item.responsavel)}</td>
+                <td class="px-6 py-4 text-sm">${escapeHtml(item.empresa)}</td>
+                <td class="px-6 py-4 text-sm font-semibold">${escapeHtml(item.grupo)}</td>
+                <td class="px-6 py-4 text-sm">${escapeHtml(item.cota)}</td>
+                <td class="px-6 py-4 text-sm">${formatarData(item.data_venc)}</td>
+                <td class="px-6 py-4 text-sm font-semibold text-green-400">R$ ${item.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+                <td class="px-6 py-4 text-sm"><span class="status-badge ${statusClass}">${item.status}</span></td>
+                <td class="px-6 py-4 text-sm"><span class="retorno-badge ${getClasseRetorno(item.data_retorno)}">${getTextoRetorno(item.data_retorno)}</span></td>
+                <td class="px-6 py-4 text-sm">
+                    <div class="flex gap-2">
+                        <button onclick="window.visualizarRegistro(${item.id})" class="action-icon"><i class="fas fa-eye"></i></button>
+                        <button onclick="window.editarRegistro(${item.id})" class="action-icon"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.excluirRegistro(${item.id})" class="action-icon"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        const total = filtrados.length;
+        const criticos = filtrados.filter(f => getSituacaoRetorno(f.data_retorno) !== "futuro").length;
+        const soma = filtrados.reduce((acc, f) => acc + (f.valor || 0), 0);
         
         document.getElementById('totalRegistros').innerText = total;
         document.getElementById('totalAlertas').innerText = criticos;
         document.getElementById('valorTotal').innerHTML = 'R$ ' + soma.toLocaleString('pt-BR', {minimumFractionDigits:2});
-        document.getElementById('totalVencimentosSemana').innerText = vencSemana;
-        document.getElementById('valorEmAtraso').innerHTML = 'R$ ' + somaAtraso.toLocaleString('pt-BR', {minimumFractionDigits:2});
-        
-        atualizarGraficos(filtrados);
     }
 
     function aplicarFiltros() {
@@ -296,7 +188,7 @@
         document.getElementById('filterEmpresa').innerHTML = '<option value="">Todos</option>' + empresas.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join('');
     }
 
-    // ========== MODAIS ==========
+    // ========== MODAIS E REGISTROS ==========
     window.visualizarRegistro = function(id) {
         const r = dados.find(reg => reg.id === id);
         if (!r) return;
@@ -335,7 +227,6 @@
         }
     };
 
-    // ========== ITENS NO MODAL ==========
     function renderizarItensTabelaModal() {
         const tbody = document.getElementById('itensBody');
         if (!tbody) return;
@@ -376,8 +267,8 @@
 
     // ========== INIT ==========
     function init() {
-        // Agora, a primeira coisa que o sistema faz é checar a tela de acesso
         verificarAcesso();
+        carregarDados(); atualizarFiltrosSelect(); aplicarFiltros();
         
         document.getElementById('btnNovoRegistro')?.addEventListener('click', () => {
             currentEditId = null;
@@ -427,6 +318,5 @@
             reader.readAsText(e.target.files[0]);
         });
     }
-    
     init();
 })();
