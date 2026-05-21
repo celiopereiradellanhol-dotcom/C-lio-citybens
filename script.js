@@ -4,34 +4,53 @@
     let dados = [];
     let currentEditId = null;
     let itensArray = [];
+    let charts = {};
 
-    // ========== AUTENTICAÇÃO ==========
-    function verificarAcesso() {
-        const btnEntrar = document.getElementById('btnEntrar');
-        if (!btnEntrar) return;
+    const LOGIN_USER = "celio";
+    const LOGIN_PASS = "102030";
 
-        btnEntrar.addEventListener('click', function() {
-            const usuarioDigitado = document.getElementById('loginUsuario').value.trim();
-            const senhaDigitada = document.getElementById('loginSenha').value.trim();
-            const erro = document.getElementById('erroLogin');
+    function isAuthenticated() {
+        return localStorage.getItem("citybens_auth") === "true";
+    }
 
-            // Lista de usuários autorizados
-            const usuariosPermitidos = [
-                { nome: "Thaiane", senha: "102030" },
-                { nome: "Celio", senha: "102030" },
-                { nome: "Leticia", senha: "102030" }
-            ];
+    function setAuthenticated(value) {
+        if (value) {
+            localStorage.setItem("citybens_auth", "true");
+        } else {
+            localStorage.removeItem("citybens_auth");
+        }
+    }
 
-            const usuarioValido = usuariosPermitidos.find(
-                user => user.nome.toLowerCase() === usuarioDigitado.toLowerCase() && user.senha === senhaDigitada
-            );
+    function showLogin() {
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('mainContainer').style.display = 'none';
+    }
 
-            if (usuarioValido) {
-                document.getElementById('telaLogin').style.display = 'none';
-            } else {
-                if (erro) erro.classList.remove('hidden');
-            }
-        });
+    function showApp() {
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+        carregarDados();
+        atualizarFiltrosSelect();
+        aplicarFiltros();
+        renderizarGraficos(dados);
+    }
+
+    function fazerLogout() {
+        setAuthenticated(false);
+        showLogin();
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+    }
+
+    function autenticar() {
+        const user = document.getElementById('loginUser').value.trim();
+        const pass = document.getElementById('loginPass').value.trim();
+        if (user === LOGIN_USER && pass === LOGIN_PASS) {
+            setAuthenticated(true);
+            showApp();
+        } else {
+            alert("Usuário ou senha incorretos!");
+        }
     }
 
     // ========== STORAGE ==========
@@ -78,7 +97,7 @@
     }
 
     function getSituacaoRetorno(data) {
-        if (!data) return "futuro";
+        if (!data) return "atrasado";
         const hoje = new Date(); hoje.setHours(0,0,0,0);
         const partes = data.split('-');
         const ret = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
@@ -101,6 +120,29 @@
         return "🟢 Futuro";
     }
 
+    function calcularTotalVencimentosSemana(dataList) {
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const fimSemana = new Date(hoje); fimSemana.setDate(hoje.getDate() + 7);
+        let total = 0;
+        for (const item of dataList) {
+            if (item.data_venc && item.status !== "Pago" && item.status !== "Contemplado") {
+                const venc = new Date(item.data_venc);
+                if (venc >= hoje && venc <= fimSemana) total++;
+            }
+        }
+        return total;
+    }
+
+    function calcularValorAtraso(dataList) {
+        let totalAtraso = 0;
+        for (const item of dataList) {
+            if (getSituacaoRetorno(item.data_retorno) === "atrasado" && item.status !== "Pago" && item.status !== "Contemplado") {
+                totalAtraso += item.valor;
+            }
+        }
+        return totalAtraso;
+    }
+
     // ========== RENDER TABLE ==========
     function renderizarTabela(filtrados) {
         const tbody = document.getElementById('tableBody');
@@ -112,6 +154,8 @@
             document.getElementById('totalRegistros').innerText = '0';
             document.getElementById('totalAlertas').innerText = '0';
             document.getElementById('valorTotal').innerHTML = 'R$ 0,00';
+            document.getElementById('totalVencimentosSemana').innerText = '0';
+            document.getElementById('valorAtraso').innerHTML = 'R$ 0,00';
             return;
         }
 
@@ -134,16 +178,20 @@
                         <button onclick="window.excluirRegistro(${item.id})" class="action-icon"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </td>
-            </tr>`;
+             </tr>`;
         }).join('');
 
         const total = filtrados.length;
         const criticos = filtrados.filter(f => getSituacaoRetorno(f.data_retorno) !== "futuro").length;
         const soma = filtrados.reduce((acc, f) => acc + (f.valor || 0), 0);
+        const vencimentosSemana = calcularTotalVencimentosSemana(dados);
+        const valorAtraso = calcularValorAtraso(dados);
         
         document.getElementById('totalRegistros').innerText = total;
         document.getElementById('totalAlertas').innerText = criticos;
         document.getElementById('valorTotal').innerHTML = 'R$ ' + soma.toLocaleString('pt-BR', {minimumFractionDigits:2});
+        document.getElementById('totalVencimentosSemana').innerText = vencimentosSemana;
+        document.getElementById('valorAtraso').innerHTML = 'R$ ' + valorAtraso.toLocaleString('pt-BR', {minimumFractionDigits:2});
     }
 
     function aplicarFiltros() {
@@ -178,6 +226,7 @@
         });
 
         renderizarTabela(filtrados);
+        renderizarGraficos(dados);
     }
 
     function atualizarFiltrosSelect() {
@@ -188,7 +237,87 @@
         document.getElementById('filterEmpresa').innerHTML = '<option value="">Todos</option>' + empresas.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join('');
     }
 
-    // ========== MODAIS E REGISTROS ==========
+    // ========== GRÁFICOS ==========
+    function renderizarGraficos(listaDados) {
+        try {
+            // 1. Status
+            const statusCount = { 'Ativo': 0, 'Pago': 0, 'Contemplado': 0 };
+            for (const item of listaDados) {
+                if (statusCount.hasOwnProperty(item.status)) statusCount[item.status]++;
+                else statusCount['Ativo']++;
+            }
+            updateChart('chartStatus', 'pie', 
+                Object.keys(statusCount), 
+                Object.values(statusCount),
+                ['#10b981', '#22c55e', '#a855f7']
+            );
+
+            // 2. Retorno
+            const retornoCount = { 'atrasado': 0, 'hoje': 0, 'futuro': 0 };
+            for (const item of listaDados) {
+                const sit = getSituacaoRetorno(item.data_retorno);
+                retornoCount[sit]++;
+            }
+            updateChart('chartRetorno', 'pie', 
+                ['Atrasado', 'Hoje', 'Futuro'], 
+                [retornoCount.atrasado, retornoCount.hoje, retornoCount.futuro],
+                ['#ef4444', '#facc15', '#22c55e']
+            );
+
+            // 3. Valor por Responsável
+            const responsavelValor = new Map();
+            for (const item of listaDados) {
+                const nome = item.responsavel;
+                if (nome) responsavelValor.set(nome, (responsavelValor.get(nome) || 0) + item.valor);
+            }
+            const sortedResp = [...responsavelValor.entries()].sort((a,b) => b[1] - a[1]).slice(0, 6);
+            updateChart('chartResponsavel', 'bar', 
+                sortedResp.map(r => r[0]), 
+                sortedResp.map(r => r[1]),
+                ['#667eea']
+            );
+
+            // 4. Registros por Empresa
+            const empresaCount = new Map();
+            for (const item of listaDados) {
+                const nome = item.empresa;
+                if (nome) empresaCount.set(nome, (empresaCount.get(nome) || 0) + 1);
+            }
+            const sortedEmp = [...empresaCount.entries()].sort((a,b) => b[1] - a[1]).slice(0, 6);
+            updateChart('chartEmpresa', 'bar', 
+                sortedEmp.map(e => e[0]), 
+                sortedEmp.map(e => e[1]),
+                ['#a855f7']
+            );
+        } catch (error) {
+            console.error("Erro ao renderizar gráficos:", error);
+        }
+    }
+
+    function updateChart(chartId, type, labels, data, backgroundColor) {
+        const canvas = document.getElementById(chartId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (charts[chartId]) {
+            charts[chartId].destroy();
+            delete charts[chartId];
+        }
+        if (!labels.length || data.every(v => v === 0)) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#4b5563';
+            ctx.font = '14px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('Sem dados', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        charts[chartId] = new Chart(ctx, {
+            type: type,
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: backgroundColor, borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
+        });
+    }
+
+    // ========== MODAIS ==========
     window.visualizarRegistro = function(id) {
         const r = dados.find(reg => reg.id === id);
         if (!r) return;
@@ -227,6 +356,7 @@
         }
     };
 
+    // ========== ITENS NO MODAL ==========
     function renderizarItensTabelaModal() {
         const tbody = document.getElementById('itensBody');
         if (!tbody) return;
@@ -237,7 +367,7 @@
                 <td><input type="text" value="${escapeHtml(item.grupo)}" class="input-field text-xs" onchange="window.updateItemField(${idx}, 'grupo', this.value)"></td>
                 <td><input type="text" value="${escapeHtml(item.cota)}" class="input-field text-xs" onchange="window.updateItemField(${idx}, 'cota', this.value)"></td>
                 <td><input type="date" value="${item.data_venc}" class="input-field text-xs" onchange="window.updateItemField(${idx}, 'data_venc', this.value)"></td>
-                <td><input type="number" value="${item.valor}" class="input-field text-xs" onchange="window.updateItemField(${idx}, 'valor', this.value)"></td>
+                <td><input type="number" step="0.01" value="${item.valor}" class="input-field text-xs" onchange="window.updateItemField(${idx}, 'valor', this.value)"></td>
                 <td>
                     <select class="input-field text-xs" onchange="window.updateItemField(${idx}, 'status', this.value)">
                         <option ${item.status === 'Ativo' ? 'selected' : ''}>Ativo</option>
@@ -261,15 +391,41 @@
     window.updateItemField = (idx, field, val) => { if (itensArray[idx]) itensArray[idx][field] = field === 'valor' ? (parseFloat(val) || 0) : val; };
     window.removeItem = (idx) => { itensArray.splice(idx, 1); if (itensArray.length === 0) adicionarItemVazio(); renderizarItensTabelaModal(); };
     function adicionarItemVazio() { itensArray.push({ grupo: '', cota: '', data_venc: '', valor: 0, status: 'Ativo', canal: '', data_retorno: '', observacao: '', acontecimentos: '' }); }
-    function fecharModal() { document.getElementById('modalEditar').classList.remove('active'); }
-    function fecharVisualizacao() { document.getElementById('modalVisualizar').classList.remove('active'); }
-    window.fecharModal = fecharModal; window.fecharVisualizacao = fecharVisualizacao;
+    window.fecharModalEditar = function() { document.getElementById('modalEditar').classList.remove('active'); };
+    window.fecharVisualizacao = function() { document.getElementById('modalVisualizar').classList.remove('active'); };
+
+    // ========== BACKUP & RESTORE ==========
+    function fazerBackup() {
+        const backupData = { registros: dados };
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+        a.download = `citybens_backup_${Date.now()}.json`; a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    function restaurarBackup(arquivo) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const content = JSON.parse(ev.target.result);
+                const regs = content.registros || (Array.isArray(content) ? content : []);
+                if (confirm(`Restaurar ${regs.length} registros?`)) { dados = regs; salvarLocal(); location.reload(); }
+            } catch (err) { alert("Erro no arquivo"); }
+        };
+        reader.readAsText(arquivo);
+    }
 
     // ========== INIT ==========
     function init() {
-        verificarAcesso();
-        carregarDados(); atualizarFiltrosSelect(); aplicarFiltros();
-        
+        if (isAuthenticated()) {
+            showApp();
+        } else {
+            showLogin();
+        }
+
+        document.getElementById('btnLogin')?.addEventListener('click', autenticar);
+        document.getElementById('btnLogout')?.addEventListener('click', fazerLogout);
+
         document.getElementById('btnNovoRegistro')?.addEventListener('click', () => {
             currentEditId = null;
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus mr-3 text-green-400"></i>Novo Registro';
@@ -291,7 +447,7 @@
             itensValidos.forEach(item => {
                 dados.push({ id: Date.now() + Math.random(), responsavel: resp, empresa: emp, administradora: adm, ...item });
             });
-            salvarLocal(); atualizarFiltrosSelect(); aplicarFiltros(); fecharModal();
+            salvarLocal(); atualizarFiltrosSelect(); aplicarFiltros(); window.fecharModalEditar();
         });
         document.getElementById('btnFiltrar')?.addEventListener('click', aplicarFiltros);
         document.getElementById('btnLimpar')?.addEventListener('click', () => {
@@ -300,22 +456,11 @@
             document.getElementById('searchBox').value = ''; aplicarFiltros();
         });
         document.getElementById('searchBox')?.addEventListener('input', aplicarFiltros);
-        document.getElementById('btnBackupManual')?.addEventListener('click', () => {
-            const blob = new Blob([JSON.stringify({ registros: dados }, null, 2)], { type: "application/json" });
-            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-            a.download = `citybens_backup_${Date.now()}.json`; a.click();
-        });
+        document.getElementById('btnBackupManual')?.addEventListener('click', fazerBackup);
         document.getElementById('btnRestoreBackup')?.addEventListener('click', () => document.getElementById('restoreFileInput').click());
         document.getElementById('restoreFileInput')?.addEventListener('change', (e) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const content = JSON.parse(ev.target.result);
-                    const regs = content.registros || (Array.isArray(content) ? content : []);
-                    if (confirm(`Restaurar ${regs.length} registros?`)) { dados = regs; salvarLocal(); location.reload(); }
-                } catch (err) { alert("Erro no arquivo"); }
-            };
-            reader.readAsText(e.target.files[0]);
+            if (e.target.files && e.target.files[0]) restaurarBackup(e.target.files[0]);
+            e.target.value = '';
         });
     }
     init();
