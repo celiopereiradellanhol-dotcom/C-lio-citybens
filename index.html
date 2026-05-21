@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>CityBens | CRM de Boletos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-area">
+                <div class="logo-icon">CB</div>
+                <div class="logo-text">
+                    <h1>CityBens</h1>
+                    <p>CRM de Boletos</p>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-card"><div class="stat-label">Total de registros</div><div class="stat-value" id="totalRegistros">0</div></div>
+                <div class="stat-card"><div class="stat-label">Retornos críticos</div><div class="stat-value" id="totalAlertas">0</div></div>
+                <div class="stat-card"><div class="stat-label">Valor em carteira</div><div class="stat-value small" id="valorTotal">R$ 0</div></div>
+            </div>
+        </header>
+    
+        <section class="action-bar">
+            <div class="filters">
+                <div class="filter-group"><label>Responsável</label><select id="filterResponsavel"><option value="">Todos</option></select></div>
+                <div class="filter-group"><label>Empresa</label><select id="filterEmpresa"><option value="">Todos</option></select></div>
+                <div class="filter-group"><label>Status</label><select id="filterStatus"><option value="">Todos</option><option>Ativo</option><option>Pago</option><option>Contemplado</option></select></div>
+                <div class="filter-group"><label>Situação Retorno</label><select id="filterRetorno"><option value="">Todos</option><option>🔴 Atrasado</option><option>🟡 Hoje</option><option>🟢 Futuro</option></select></div>
+                <div class="filter-group"><label>Buscar</label><input type="text" id="searchBox" placeholder="Grupo, cota, obs..."></div>
+                <button class="btn btn-primary" id="btnFiltrar"><i class="fas fa-search"></i> Filtrar</button>
+                <button class="btn btn-outline" id="btnLimpar"><i class="fas fa-undo-alt"></i> Limpar</button>
+            </div>
+            <div>
+                <button class="btn btn-backup" id="btnBackupManual"><i class="fas fa-download"></i> Backup agora</button>
+                <button class="btn btn-restore" id="btnRestoreBackup"><i class="fas fa-upload"></i> Restaurar backup</button>
+                <button class="btn btn-add" id="btnNovoRegistro"><i class="fas fa-plus"></i> Novo registro</button>
+                <input type="file" id="restoreFileInput" accept=".json">
+            </div>
+        </section>
+    
+        <main class="table-wrapper">
+            <table id="dataTable">
+                <thead>
+                    <tr><th>Resp.</th><th>Empresa</th><th>Adm</th><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Retorno</th><th>Observação</th><th>Acontecimentos</th><th style="width:100px">Ações</th></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state" style="display: none;">📭 Nenhum registro encontrado. Clique em "Novo registro" para adicionar cotas.</div>
+        </main>
+        <footer>© 2026 CityBens — Clique no 👁️ para visualizar todos os detalhes do registro.</footer>
+    </div>
+    
+    <!-- MODAL DE VISUALIZAÇÃO DETALHADA -->
+    <div id="modalVisualizar" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-eye"></i> Detalhes do Registro</h3>
+            <div id="visualizarConteudo" class="detalhes-grid">
+                <!-- Preenchido via JS -->
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-outline" id="btnFecharVisualizar">Fechar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL DE CADASTRO/EDIÇÃO -->
+    <div id="modalEditar" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Novo registro (múltiplas cotas)</h3>
+            <div class="form-grid">
+                <div class="form-field"><label>Responsável *</label><input type="text" id="editResponsavel" required></div>
+                <div class="form-field"><label>Empresa *</label><input type="text" id="editEmpresa" required></div>
+                <div class="form-field full"><label>Administradora</label><input type="text" id="editAdministradora"></div>
+            </div>
+            <div class="itens-section">
+                <div class="itens-header">
+                    <h4><i class="fas fa-list"></i> Itens (grupo/cota)</h4>
+                    <button type="button" class="btn btn-outline" id="btnAdicionarItem" style="padding: 4px 12px;"><i class="fas fa-plus"></i> Adicionar cota</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="itens-table" id="itensTable">
+                        <thead>
+                            <tr><th>Grupo</th><th>Cota</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Canal</th><th>Data Retorno *</th><th>Observação</th><th>Acontecimentos</th><th style="width:40px"></th></tr>
+                        </thead>
+                        <tbody id="itensBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-outline" id="btnCancelarModal">Cancelar</button>
+                <button class="btn btn-primary" id="btnSalvarModal">Salvar todos os itens</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
