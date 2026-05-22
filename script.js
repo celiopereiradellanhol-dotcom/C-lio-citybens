@@ -1,111 +1,165 @@
+// ========== CONFIGURAÇÃO DO SUPABASE ==========
+// SUBSTITUA PELAS SUAS CREDENCIAIS (obtidas no passo 1)
+const SUPABASE_URL = "https://SEU_PROJETO.supabase.co";
+const SUPABASE_ANON_KEY = "SUA_ANON_KEY_AQUI";
+
+// Inicializa o cliente Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ========== SISTEMA PRINCIPAL ==========
 (function() {
     'use strict';
     
-    // Aguarda o DOM estar completamente carregado antes de executar qualquer coisa
     document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM carregado. Iniciando sistema...");
+        console.log("DOM carregado. Conectando ao Supabase...");
         
-        let dados = [];
+        let dados = [];               // dados carregados do Supabase
         let currentEditId = null;
         let itensArray = [];
         let charts = {};
 
-        const LOGIN_USER = "celio";
-        const LOGIN_PASS = "102030";
-
-        // ========== GERENCIAMENTO DE LOGIN ==========
+        // ========== GERENCIAMENTO DE LOGIN (com Supabase) ==========
         function isAuthenticated() {
-            return localStorage.getItem("citybens_auth") === "true";
+            return localStorage.getItem("citybens_session") === "true";
         }
 
         function setAuthenticated(value) {
-            if (value) {
-                localStorage.setItem("citybens_auth", "true");
-            } else {
-                localStorage.removeItem("citybens_auth");
-            }
+            if (value) localStorage.setItem("citybens_session", "true");
+            else localStorage.removeItem("citybens_session");
         }
 
         function showLogin() {
-            const loginDiv = document.getElementById('loginContainer');
-            const mainDiv = document.getElementById('mainContainer');
-            if (loginDiv) loginDiv.style.display = 'flex';
-            if (mainDiv) mainDiv.style.display = 'none';
-            console.log("Tela de login exibida");
+            document.getElementById('loginContainer').style.display = 'flex';
+            document.getElementById('mainContainer').style.display = 'none';
         }
 
         function showApp() {
-            const loginDiv = document.getElementById('loginContainer');
-            const mainDiv = document.getElementById('mainContainer');
-            if (loginDiv) loginDiv.style.display = 'none';
-            if (mainDiv) mainDiv.style.display = 'block';
-            console.log("Aplicação principal exibida");
-            carregarDados();
-            atualizarFiltrosSelect();
-            aplicarFiltros();
-            renderizarGraficos(dados);
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
+            carregarRegistros();
+        }
+
+        async function autenticar() {
+            const user = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+            
+            if (!user || !pass) {
+                alert("Preencha usuário e senha.");
+                return;
+            }
+            
+            const { data, error } = await supabase
+                .from('usuarios')
+                .select('*')
+                .eq('usuario', user)
+                .eq('senha', pass)
+                .maybeSingle();
+            
+            if (error) {
+                console.error("Erro na autenticação:", error);
+                alert("Erro ao conectar com o servidor. Tente novamente.");
+                return;
+            }
+            
+            if (data) {
+                console.log("Login bem-sucedido!");
+                setAuthenticated(true);
+                showApp();
+            } else {
+                alert("Usuário ou senha incorretos!");
+            }
         }
 
         function fazerLogout() {
             setAuthenticated(false);
             showLogin();
-            const userInput = document.getElementById('loginUser');
-            const passInput = document.getElementById('loginPass');
-            if (userInput) userInput.value = '';
-            if (passInput) passInput.value = '';
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPass').value = '';
+            dados = [];
+            renderizarTabela([]);
         }
 
-        function autenticar() {
-            console.log("Tentativa de login...");
-            const userInput = document.getElementById('loginUser');
-            const passInput = document.getElementById('loginPass');
-            if (!userInput || !passInput) {
-                console.error("Campos de login não encontrados!");
-                alert("Erro interno: campos de login não encontrados.");
-                return;
-            }
-            const user = userInput.value.trim();
-            const pass = passInput.value.trim();
-            console.log(`Usuário: ${user}, Senha: ${pass.length > 0 ? '****' : 'vazia'}`);
-            
-            if (user === LOGIN_USER && pass === LOGIN_PASS) {
-                console.log("Login bem-sucedido!");
-                setAuthenticated(true);
-                showApp();
-            } else {
-                console.log("Login falhou: credenciais inválidas");
-                alert("Usuário ou senha incorretos!");
-            }
-        }
-
-        // ========== STORAGE ==========
-        function salvarLocal() {
+        // ========== CRUD com Supabase ==========
+        async function carregarRegistros() {
             try {
-                localStorage.setItem("citybens_dados", JSON.stringify(dados));
-            } catch (e) { console.error(e); }
-        }
-
-        function carregarDados() {
-            try {
-                const saved = localStorage.getItem("citybens_dados");
-                dados = saved ? JSON.parse(saved) : [];
-                dados = dados.map(reg => ({
-                    id: reg.id || Date.now() + Math.random(),
-                    responsavel: String(reg.responsavel || "").trim(),
-                    empresa: String(reg.empresa || "").trim(),
-                    administradora: String(reg.administradora || "").trim(),
-                    grupo: String(reg.grupo || "").trim(),
-                    cota: String(reg.cota || "").trim(),
+                const { data, error } = await supabase
+                    .from('registros')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                dados = data.map(reg => ({
+                    id: reg.id,
+                    responsavel: reg.responsavel || "",
+                    empresa: reg.empresa || "",
+                    administradora: reg.administradora || "",
+                    grupo: reg.grupo || "",
+                    cota: reg.cota || "",
                     data_venc: reg.data_venc || "",
-                    valor: parseFloat(reg.valor) || 0,
-                    status: String(reg.status || "Ativo").trim(),
-                    canal: String(reg.canal || "").trim(),
+                    valor: reg.valor || 0,
+                    status: reg.status || "Ativo",
+                    canal: reg.canal || "",
                     data_retorno: reg.data_retorno || "",
-                    observacao: String(reg.observacao || "").trim(),
-                    acontecimentos: String(reg.acontecimentos || "").trim()
+                    observacao: reg.observacao || "",
+                    acontecimentos: reg.acontecimentos || ""
                 }));
-                console.log(`${dados.length} registros carregados.`);
-            } catch (e) { dados = []; }
+                
+                console.log(`${dados.length} registros carregados do Supabase.`);
+                atualizarFiltrosSelect();
+                aplicarFiltros();
+                renderizarGraficos(dados);
+            } catch (err) {
+                console.error("Erro ao carregar registros:", err);
+                alert("Não foi possível carregar os dados. Verifique sua conexão com o Supabase.");
+                dados = [];
+                renderizarTabela([]);
+            }
+        }
+
+        async function salvarRegistro(registro) {
+            try {
+                const { error } = await supabase.from('registros').insert([registro]);
+                if (error) throw error;
+                await carregarRegistros();
+                return true;
+            } catch (err) {
+                console.error("Erro ao salvar:", err);
+                alert("Erro ao salvar no Supabase. Tente novamente.");
+                return false;
+            }
+        }
+
+        async function atualizarRegistro(id, registro) {
+            try {
+                const { error } = await supabase
+                    .from('registros')
+                    .update(registro)
+                    .eq('id', id);
+                if (error) throw error;
+                await carregarRegistros();
+                return true;
+            } catch (err) {
+                console.error("Erro ao atualizar:", err);
+                alert("Erro ao atualizar no Supabase.");
+                return false;
+            }
+        }
+
+        async function deletarRegistro(id) {
+            try {
+                const { error } = await supabase
+                    .from('registros')
+                    .delete()
+                    .eq('id', id);
+                if (error) throw error;
+                await carregarRegistros();
+                return true;
+            } catch (err) {
+                console.error("Erro ao excluir:", err);
+                alert("Erro ao excluir no Supabase.");
+                return false;
+            }
         }
 
         // ========== UTILITIES ==========
@@ -206,7 +260,7 @@
                             <button onclick="window.excluirRegistro(${item.id})" class="action-icon"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </td>
-                </tr>`;
+                 </tr>`;
             }).join('');
 
             const total = filtrados.length;
@@ -270,57 +324,37 @@
         // ========== GRÁFICOS ==========
         function renderizarGraficos(listaDados) {
             try {
-                // 1. Status
                 const statusCount = { 'Ativo': 0, 'Pago': 0, 'Contemplado': 0 };
                 for (const item of listaDados) {
                     if (statusCount.hasOwnProperty(item.status)) statusCount[item.status]++;
                     else statusCount['Ativo']++;
                 }
-                updateChart('chartStatus', 'pie', 
-                    Object.keys(statusCount), 
-                    Object.values(statusCount),
-                    ['#10b981', '#22c55e', '#a855f7']
-                );
+                updateChart('chartStatus', 'pie', Object.keys(statusCount), Object.values(statusCount), ['#10b981', '#22c55e', '#a855f7']);
 
-                // 2. Retorno
                 const retornoCount = { 'atrasado': 0, 'hoje': 0, 'futuro': 0 };
                 for (const item of listaDados) {
                     const sit = getSituacaoRetorno(item.data_retorno);
                     retornoCount[sit]++;
                 }
-                updateChart('chartRetorno', 'pie', 
-                    ['Atrasado', 'Hoje', 'Futuro'], 
-                    [retornoCount.atrasado, retornoCount.hoje, retornoCount.futuro],
-                    ['#ef4444', '#facc15', '#22c55e']
-                );
+                updateChart('chartRetorno', 'pie', ['Atrasado', 'Hoje', 'Futuro'], [retornoCount.atrasado, retornoCount.hoje, retornoCount.futuro], ['#ef4444', '#facc15', '#22c55e']);
 
-                // 3. Valor por Responsável
                 const responsavelValor = new Map();
                 for (const item of listaDados) {
                     const nome = item.responsavel;
                     if (nome) responsavelValor.set(nome, (responsavelValor.get(nome) || 0) + item.valor);
                 }
                 const sortedResp = [...responsavelValor.entries()].sort((a,b) => b[1] - a[1]).slice(0, 6);
-                updateChart('chartResponsavel', 'bar', 
-                    sortedResp.map(r => r[0]), 
-                    sortedResp.map(r => r[1]),
-                    ['#667eea']
-                );
+                updateChart('chartResponsavel', 'bar', sortedResp.map(r => r[0]), sortedResp.map(r => r[1]), ['#667eea']);
 
-                // 4. Registros por Empresa
                 const empresaCount = new Map();
                 for (const item of listaDados) {
                     const nome = item.empresa;
                     if (nome) empresaCount.set(nome, (empresaCount.get(nome) || 0) + 1);
                 }
                 const sortedEmp = [...empresaCount.entries()].sort((a,b) => b[1] - a[1]).slice(0, 6);
-                updateChart('chartEmpresa', 'bar', 
-                    sortedEmp.map(e => e[0]), 
-                    sortedEmp.map(e => e[1]),
-                    ['#a855f7']
-                );
+                updateChart('chartEmpresa', 'bar', sortedEmp.map(e => e[0]), sortedEmp.map(e => e[1]), ['#a855f7']);
             } catch (error) {
-                console.error("Erro ao renderizar gráficos:", error);
+                console.error("Erro nos gráficos:", error);
             }
         }
 
@@ -328,10 +362,7 @@
             const canvas = document.getElementById(chartId);
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            if (charts[chartId]) {
-                charts[chartId].destroy();
-                delete charts[chartId];
-            }
+            if (charts[chartId]) charts[chartId].destroy();
             if (!labels.length || data.every(v => v === 0)) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#4b5563';
@@ -369,7 +400,7 @@
             if (modal) modal.classList.add('active');
         };
 
-        window.editarRegistro = function(id) {
+        window.editarRegistro = async function(id) {
             const reg = dados.find(r => r.id === id);
             if (!reg) return;
             currentEditId = id;
@@ -384,10 +415,9 @@
             if (modal) modal.classList.add('active');
         };
 
-        window.excluirRegistro = function(id) {
-            if (confirm('⚠️ Excluir permanentemente?')) {
-                dados = dados.filter(r => r.id !== id);
-                salvarLocal(); atualizarFiltrosSelect(); aplicarFiltros();
+        window.excluirRegistro = async function(id) {
+            if (confirm('⚠️ Excluir permanentemente? Esta ação não pode ser desfeita.')) {
+                await deletarRegistro(id);
             }
         };
 
@@ -426,16 +456,10 @@
         window.updateItemField = (idx, field, val) => { if (itensArray[idx]) itensArray[idx][field] = field === 'valor' ? (parseFloat(val) || 0) : val; };
         window.removeItem = (idx) => { itensArray.splice(idx, 1); if (itensArray.length === 0) adicionarItemVazio(); renderizarItensTabelaModal(); };
         function adicionarItemVazio() { itensArray.push({ grupo: '', cota: '', data_venc: '', valor: 0, status: 'Ativo', canal: '', data_retorno: '', observacao: '', acontecimentos: '' }); }
-        window.fecharModalEditar = function() { 
-            const modal = document.getElementById('modalEditar');
-            if (modal) modal.classList.remove('active');
-        };
-        window.fecharVisualizacao = function() { 
-            const modal = document.getElementById('modalVisualizar');
-            if (modal) modal.classList.remove('active');
-        };
+        window.fecharModalEditar = function() { document.getElementById('modalEditar').classList.remove('active'); };
+        window.fecharVisualizacao = function() { document.getElementById('modalVisualizar').classList.remove('active'); };
 
-        // ========== BACKUP & RESTORE ==========
+        // ========== BACKUP & RESTORE (local, apenas para exportar dados atuais) ==========
         function fazerBackup() {
             const backupData = { registros: dados };
             const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
@@ -444,13 +468,22 @@
             URL.revokeObjectURL(a.href);
         }
 
-        function restaurarBackup(arquivo) {
+        async function restaurarBackup(arquivo) {
             const reader = new FileReader();
-            reader.onload = (ev) => {
+            reader.onload = async (ev) => {
                 try {
                     const content = JSON.parse(ev.target.result);
                     const regs = content.registros || (Array.isArray(content) ? content : []);
-                    if (confirm(`Restaurar ${regs.length} registros?`)) { dados = regs; salvarLocal(); location.reload(); }
+                    if (confirm(`Restaurar ${regs.length} registros? Os dados atuais serão substituídos.`)) {
+                        for (const reg of dados) {
+                            await supabase.from('registros').delete().eq('id', reg.id);
+                        }
+                        for (const reg of regs) {
+                            await supabase.from('registros').insert([reg]);
+                        }
+                        await carregarRegistros();
+                        alert("Backup restaurado com sucesso!");
+                    }
                 } catch (err) { alert("Erro no arquivo"); }
             };
             reader.readAsText(arquivo);
@@ -458,14 +491,8 @@
 
         // ========== EVENTOS E INICIALIZAÇÃO ==========
         function inicializarEventos() {
-            console.log("Inicializando eventos...");
             const btnLogin = document.getElementById('btnLogin');
-            if (btnLogin) {
-                btnLogin.addEventListener('click', autenticar);
-                console.log("Evento de login adicionado");
-            } else {
-                console.error("Botão btnLogin não encontrado!");
-            }
+            if (btnLogin) btnLogin.addEventListener('click', autenticar);
             
             const btnLogout = document.getElementById('btnLogout');
             if (btnLogout) btnLogout.addEventListener('click', fazerLogout);
@@ -473,32 +500,64 @@
             const btnNovo = document.getElementById('btnNovoRegistro');
             if (btnNovo) btnNovo.addEventListener('click', () => {
                 currentEditId = null;
-                const modalTitle = document.getElementById('modalTitle');
-                if (modalTitle) modalTitle.innerHTML = '<i class="fas fa-plus mr-3 text-green-400"></i>Novo Registro';
+                document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus mr-3 text-green-400"></i>Novo Registro';
                 document.getElementById('editResponsavel').value = '';
                 document.getElementById('editEmpresa').value = '';
                 document.getElementById('editAdministradora').value = '';
                 itensArray = []; adicionarItemVazio(); renderizarItensTabelaModal();
-                const modal = document.getElementById('modalEditar');
-                if (modal) modal.classList.add('active');
+                document.getElementById('modalEditar').classList.add('active');
             });
             
             const btnAddItem = document.getElementById('btnAdicionarItem');
             if (btnAddItem) btnAddItem.addEventListener('click', () => { adicionarItemVazio(); renderizarItensTabelaModal(); });
             
             const btnSalvar = document.getElementById('btnSalvarModal');
-            if (btnSalvar) btnSalvar.addEventListener('click', () => {
+            if (btnSalvar) btnSalvar.addEventListener('click', async () => {
                 const resp = document.getElementById('editResponsavel').value.trim();
                 const emp = document.getElementById('editEmpresa').value.trim();
                 const adm = document.getElementById('editAdministradora').value.trim();
                 if (!resp || !emp) { alert("Preencha Responsável e Empresa."); return; }
                 const itensValidos = itensArray.filter(i => i.grupo && i.cota && i.data_venc && i.data_retorno);
                 if (itensValidos.length === 0) { alert("Preencha os campos obrigatórios dos itens."); return; }
-                if (currentEditId) dados = dados.filter(r => r.id !== currentEditId);
-                itensValidos.forEach(item => {
-                    dados.push({ id: Date.now() + Math.random(), responsavel: resp, empresa: emp, administradora: adm, ...item });
-                });
-                salvarLocal(); atualizarFiltrosSelect(); aplicarFiltros(); window.fecharModalEditar();
+                
+                if (currentEditId) {
+                    const item = itensValidos[0];
+                    const registroAtualizado = {
+                        responsavel: resp,
+                        empresa: emp,
+                        administradora: adm,
+                        grupo: item.grupo,
+                        cota: item.cota,
+                        data_venc: item.data_venc,
+                        valor: item.valor,
+                        status: item.status,
+                        canal: item.canal,
+                        data_retorno: item.data_retorno,
+                        observacao: item.observacao,
+                        acontecimentos: item.acontecimentos
+                    };
+                    await atualizarRegistro(currentEditId, registroAtualizado);
+                } else {
+                    for (const item of itensValidos) {
+                        const novoRegistro = {
+                            responsavel: resp,
+                            empresa: emp,
+                            administradora: adm,
+                            grupo: item.grupo,
+                            cota: item.cota,
+                            data_venc: item.data_venc,
+                            valor: item.valor,
+                            status: item.status,
+                            canal: item.canal,
+                            data_retorno: item.data_retorno,
+                            observacao: item.observacao,
+                            acontecimentos: item.acontecimentos,
+                            created_at: new Date().toISOString()
+                        };
+                        await salvarRegistro(novoRegistro);
+                    }
+                }
+                window.fecharModalEditar();
             });
             
             const btnFiltrar = document.getElementById('btnFiltrar');
